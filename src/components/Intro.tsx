@@ -39,7 +39,7 @@ export const Intro = ({ onEnter }: Props) => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.7 }}
             >
-                Portfolio · 2025
+                Portfolio · {new Date().getFullYear()}
             </motion.p>
 
             <motion.h1

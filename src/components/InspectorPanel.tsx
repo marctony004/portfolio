@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Github, ExternalLink, Mail, Linkedin, ChevronLeft, Copy, Check } from 'lucide-react';
+import { orbitNodes } from '../data/brainData';
 import type { OrbitNodeData, ChildNodeData } from '../data/brainData';
 import { ContactForm } from './ContactForm';
+import { ACCENT, MUTED } from '../theme';
 
 type AnyNode = (OrbitNodeData | ChildNodeData) & { id: string };
 
@@ -12,14 +14,12 @@ interface Props {
     onBreadcrumb?: () => void;
 }
 
-const ACCENT = '#3DE3FF';
-const MUTED  = '#9AB0CC';
 
 export const InspectorPanel = ({ node, onClose, onBreadcrumb }: Props) => {
     const links     = (node as OrbitNodeData)?.links;
     const childNode = node as ChildNodeData;
     const pipeline  = childNode?.pipeline;
-    const isChild   = !!(childNode?.tech && onBreadcrumb);
+    const isChild   = !orbitNodes.some(n => n.id === node?.id) && !!onBreadcrumb;
 
     const [activeStep, setActiveStep] = useState(0);
     const [copied, setCopied]         = useState(false);

@@ -6,6 +6,7 @@ import { BrainMap } from './components/BrainMap';
 import { InspectorPanel } from './components/InspectorPanel';
 import { CommandPalette } from './components/CommandPalette';
 import { RecruiterView } from './components/RecruiterView';
+import { PortfolioAssistant } from './components/PortfolioAssistant';
 import type { OrbitNodeData, ChildNodeData } from './data/brainData';
 
 type SelectedNode = (OrbitNodeData | ChildNodeData) & { id: string };
@@ -148,9 +149,12 @@ function App() {
                 onAction={handleCommand}
             />
 
+            {/* AI Portfolio Assistant */}
+            {entered && <PortfolioAssistant />}
+
             {/* "/" hint when no inspector open */}
             {entered && !isMobile && !selected && (
-                <div className="fixed bottom-4 right-4 pointer-events-none z-10">
+                <div className="fixed top-4 right-4 pointer-events-none z-10">
                     <p className="font-mono text-[10px] text-muted/30 tracking-widest">
                         Press <span className="text-accent/40">/</span> to search
                     </p>

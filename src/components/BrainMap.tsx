@@ -1,167 +1,18 @@
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Layers, Eye, Brain, Users, BookOpen, Mail, Cpu, type LucideIcon } from 'lucide-react';
+import { motion, AnimatePresence, useReducedMotion, useMotionValue, useAnimationFrame } from 'framer-motion';
 import { orbitNodes, currentStatus, type Capability } from '../data/brainData';
 import type { OrbitNodeData, ChildNodeData } from '../data/brainData';
 import { CapabilityChips } from './CapabilityChips';
+import { ACCENT } from '../theme';
+import { EdgeLine } from './EdgeLine';
+import { NodeCircle } from './NodeCircle';
+import {
+    PROJECTS_IDX, PROJECTS_ANGLE, PROJECTS_CHILDREN,
+    ICONS, ORBIT_CAP_MAP, ORBITAL_PARAMS, ORBIT_DEPTHS, STARS,
+    orbitPositions, childPositions,
+} from './brainMapConstants';
 
-// ── constants ──────────────────────────────────────────────────────────────
-const ORBIT_ANGLES      = [-90, -30, 30, 90, 150, 210];
-const PROJECTS_IDX      = orbitNodes.findIndex(n => n.id === 'projects');
-const PROJECTS_ANGLE    = ORBIT_ANGLES[PROJECTS_IDX] ?? -90;
-const PROJECTS_CHILDREN = PROJECTS_IDX >= 0 ? (orbitNodes[PROJECTS_IDX].children ?? []) : [];
-
-const ICONS: Record<string, LucideIcon> = {
-    projects: Layers, cv: Eye, nlp: Brain, leadership: Users, education: BookOpen, contact: Mail,
-};
-
-// Which capabilities each orbit node represents (for cross-edge derivation)
-const ORBIT_CAP_MAP: Record<string, string[]> = {
-    cv:  ['Computer Vision', 'Real-Time'],
-    nlp: ['NLP/LLMs', 'Azure'],
-};
-
-// Static constellation points (fractional coords 0–1)
-const STARS = [
-    { x: 0.07, y: 0.11, r: 1.1 }, { x: 0.88, y: 0.17, r: 0.9 },
-    { x: 0.21, y: 0.83, r: 0.8 }, { x: 0.74, y: 0.73, r: 1.0 },
-    { x: 0.47, y: 0.07, r: 0.9 }, { x: 0.92, y: 0.53, r: 1.0 },
-    { x: 0.13, y: 0.47, r: 0.7 }, { x: 0.63, y: 0.92, r: 1.1 },
-    { x: 0.37, y: 0.32, r: 0.8 }, { x: 0.83, y: 0.88, r: 0.7 },
-    { x: 0.54, y: 0.54, r: 0.6 }, { x: 0.04, y: 0.67, r: 0.9 },
-    { x: 0.94, y: 0.34, r: 0.8 }, { x: 0.31, y: 0.05, r: 1.0 },
-    { x: 0.78, y: 0.43, r: 0.7 },
-];
-
-// ── geometry helpers ────────────────────────────────────────────────────────
-interface Pos { x: number; y: number; }
-
-function orbitPositions(cx: number, cy: number, r: number): Pos[] {
-    return ORBIT_ANGLES.map(deg => {
-        const rad = (deg * Math.PI) / 180;
-        return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-    });
-}
-
-function childPositions(px: number, py: number, angleDeg: number, count: number, r: number): Pos[] {
-    if (count === 0) return [];
-    const spread = 150;
-    const start  = angleDeg - spread / 2;
-    return Array.from({ length: count }, (_, i) => {
-        const rad = ((start + (count > 1 ? (spread / (count - 1)) * i : 0)) * Math.PI) / 180;
-        return { x: px + r * Math.cos(rad), y: py + r * Math.sin(rad) };
-    });
-}
-
-// ── NodeCircle ───────────────────────────────────────────────────────────────
-interface NodeProps {
-    id: string; x: number; y: number; size: number;
-    label: string;
-    icon?: LucideIcon;
-    isCenter?: boolean; isChild?: boolean;
-    isActive: boolean; isDimmed: boolean; isHovered: boolean;
-    isKbFocused?: boolean;
-    isRelatedToHover?: boolean;
-    expandable?: boolean; isExpanded?: boolean;
-    isHinted?: boolean;
-    driftIdx: number; reduced: boolean | null;
-    onClick: (e: React.MouseEvent) => void;
-    onHover: (on: boolean) => void;
-}
-
-const ACCENT = '#3DE3FF';
-const MUTED  = '#9AB0CC';
-
-const NodeCircle = ({ x, y, size, label, icon: Icon, isCenter, isChild, isActive, isDimmed, isHovered, isKbFocused, isRelatedToHover, expandable, isExpanded, isHinted, driftIdx, reduced, onClick, onHover }: NodeProps) => {
-    const dx  = Math.sin(driftIdx * 2.31) * 3;
-    const dy  = Math.cos(driftIdx * 1.73) * 3;
-    const dur = 7 + driftIdx * 1.3;
-
-    const borderColor = isActive          ? 'rgba(61,227,255,0.85)'
-        : isKbFocused                     ? 'rgba(61,227,255,0.70)'
-        : isHinted                        ? 'rgba(61,227,255,0.55)'
-        : isHovered                       ? 'rgba(61,227,255,0.50)'
-        : isRelatedToHover                ? 'rgba(61,227,255,0.42)'
-        :                                   'rgba(61,227,255,0.18)';
-
-    const glow = isActive                 ? '0 0 40px rgba(61,227,255,0.30)'
-        : isKbFocused                     ? '0 0 28px rgba(61,227,255,0.24)'
-        : isHinted                        ? '0 0 28px rgba(61,227,255,0.22)'
-        : isHovered                       ? '0 0 24px rgba(61,227,255,0.20)'
-        : isRelatedToHover                ? '0 0 22px rgba(61,227,255,0.16)'
-        :                                   '0 0 14px rgba(61,227,255,0.07)';
-
-    const borderStyle = isKbFocused ? 'dashed' : 'solid';
-    const iconColor   = isActive || isHovered || isHinted || isKbFocused ? ACCENT : MUTED;
-    const iconSize    = isCenter ? 16 : isChild ? 12 : 14;
-
-    return (
-        <motion.div
-            className="absolute cursor-pointer select-none"
-            style={{ left: x - size / 2, top: y - size / 2, width: size, height: size, pointerEvents: 'auto' }}
-            animate={reduced ? {} : { x: [0, dx, 0, -dx * 0.6, 0], y: [0, dy, 0, -dy * 0.6, 0] }}
-            transition={{ duration: dur, repeat: Infinity, ease: 'easeInOut' }}
-            onClick={onClick}
-            onHoverStart={() => onHover(true)}
-            onHoverEnd={() => onHover(false)}
-        >
-            {/* Hint pulse ring */}
-            {isHinted && (
-                <motion.div
-                    className="absolute inset-0 rounded-full pointer-events-none"
-                    style={{ border: '1px solid rgba(61,227,255,0.4)' }}
-                    animate={{ scale: [1, 1.55, 1], opacity: [0.5, 0, 0.5] }}
-                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                />
-            )}
-
-            {/* Circle */}
-            <motion.div
-                className="w-full h-full rounded-full flex items-center justify-center relative overflow-hidden"
-                animate={{ opacity: isDimmed ? 0.22 : 1, scale: isActive ? 1.12 : isHovered ? 1.06 : 1 }}
-                transition={{ duration: 0.28, ease: 'easeOut' }}
-                style={{
-                    background: isCenter ? 'rgba(17,26,46,0.97)' : 'rgba(17,26,46,0.88)',
-                    border: `1.5px ${borderStyle} ${borderColor}`,
-                    boxShadow: glow,
-                }}
-            >
-                <div className="absolute inset-[4px] rounded-full pointer-events-none"
-                    style={{ border: '1px solid rgba(61,227,255,0.07)' }} />
-
-                {Icon && <Icon size={iconSize} color={iconColor} />}
-
-                {isCenter && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <Cpu size={14} color={isHovered ? ACCENT : MUTED} />
-                        <span className="text-[8px] font-mono mt-0.5 leading-none text-center" style={{ color: isHovered ? ACCENT : MUTED }}>
-                            MARC<br />SMITH
-                        </span>
-                    </div>
-                )}
-            </motion.div>
-
-            {/* Label */}
-            {!isCenter && (
-                <div className="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap text-center pointer-events-none">
-                    <span className="font-mono leading-none" style={{
-                        fontSize: isChild ? 9 : 10,
-                        color: isActive ? ACCENT : isDimmed ? 'rgba(154,176,204,0.25)' : MUTED,
-                    }}>
-                        {label}
-                        {expandable && (
-                            <span style={{ marginLeft: 4, color: ACCENT, opacity: 0.65, fontSize: 9 }}>
-                                {isExpanded ? '−' : '+'}
-                            </span>
-                        )}
-                    </span>
-                </div>
-            )}
-        </motion.div>
-    );
-};
-
-// ── Tooltip ──────────────────────────────────────────────────────────────────
+// ── Tooltip ───────────────────────────────────────────────────────────────────
 const Tooltip = ({ x, y, label, tip, containerW }: { x: number; y: number; label: string; tip: string; containerW: number }) => {
     const left = x > containerW * 0.7 ? x - 180 : x + 20;
     const top  = Math.max(56, y - 32);
@@ -175,7 +26,7 @@ const Tooltip = ({ x, y, label, tip, containerW }: { x: number; y: number; label
             <div className="rounded-md px-3 py-2"
                 style={{ background: 'rgba(17,26,46,0.95)', border: '1px solid rgba(61,227,255,0.2)', backdropFilter: 'blur(8px)' }}>
                 <p className="font-sans font-medium text-[12px] leading-tight" style={{ color: '#E6EEF9' }}>{label}</p>
-                <p className="font-mono text-[10px] leading-tight mt-0.5" style={{ color: MUTED }}>{tip}</p>
+                <p className="font-mono text-[10px] leading-tight mt-0.5" style={{ color: '#9AB0CC' }}>{tip}</p>
             </div>
         </motion.div>
     );
@@ -202,13 +53,28 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
     const [camera, setCamera]       = useState({ x: 0, y: 0, scale: 1 });
     const [activeFilter, setActiveFilter] = useState<Capability | null>(null);
     const [kbFocus, setKbFocus]     = useState<string | null>(null);
-    // Smart defaults
     const [showHint, setShowHint]             = useState(false);
     const [projectsHinted, setProjectsHinted] = useState(false);
     const [centerPulse, setCenterPulse]       = useState(false);
     const [hasInteracted, setHasInteracted]   = useState(false);
-    const [linesVisible, setLinesVisible]     = useState(false);
+    const [pulseSourceId, setPulseSourceId]   = useState<string | null>(null);
     const reduced = useReducedMotion();
+
+    // Orbital physics — one x/y MotionValue pair per orbit node (hooks can't be in loops)
+    const nx0 = useMotionValue(0), ny0 = useMotionValue(0);
+    const nx1 = useMotionValue(0), ny1 = useMotionValue(0);
+    const nx2 = useMotionValue(0), ny2 = useMotionValue(0);
+    const nx3 = useMotionValue(0), ny3 = useMotionValue(0);
+    const nx4 = useMotionValue(0), ny4 = useMotionValue(0);
+    const nx5 = useMotionValue(0), ny5 = useMotionValue(0);
+    const nodeMotionX = [nx0, nx1, nx2, nx3, nx4, nx5];
+    const nodeMotionY = [ny0, ny1, ny2, ny3, ny4, ny5];
+
+    const scaleCurrents = useRef([1, 1, 1, 1, 1, 1]);
+    const scaleTargets  = useRef([1, 1, 1, 1, 1, 1]);
+    const mountTimeRef  = useRef<number | null>(null);
+    const hoveredRef    = useRef<string | null>(null);
+    const selectedIdRef = useRef<string | null>(null);
 
     // Random orbit node reveal order — shuffled once per mount
     const orbitRevealOrder = useMemo(() => {
@@ -217,7 +83,6 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
             const j = Math.floor(Math.random() * (i + 1));
             [indices[i], indices[j]] = [indices[j], indices[i]];
         }
-        // result[nodeIdx] = position in reveal sequence (0 = first to appear)
         const result = new Array(orbitNodes.length).fill(0);
         indices.forEach((nodeIdx, pos) => { result[nodeIdx] = pos; });
         return result;
@@ -233,18 +98,36 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
 
     // Smart defaults on load
     useEffect(() => {
-        if (reduced) { setLinesVisible(true); return; }
-        // Lines appear after all orbit nodes have had time to animate in
-        // center: 0.1s delay + 0.45s anim = ~0.55s
-        // last orbit node: 0.3s + 5*0.13s stagger + 0.4s anim = ~1.35s
-        const tLines = setTimeout(() => setLinesVisible(true), 1500);
-        const t1 = setTimeout(() => setCenterPulse(true),  800);
-        const t2 = setTimeout(() => setCenterPulse(false), 2600);
-        const t3 = setTimeout(() => { setShowHint(true); setProjectsHinted(true); }, 1800);
-        const t4 = setTimeout(() => setShowHint(false),    5000);
-        const t5 = setTimeout(() => setProjectsHinted(false), 4200);
-        return () => [tLines, t1, t2, t3, t4, t5].forEach(clearTimeout);
+        if (reduced) return;
+        const t1 = setTimeout(() => setCenterPulse(true),  700);
+        const t2 = setTimeout(() => setCenterPulse(false), 2400);
+        const t3 = setTimeout(() => { setShowHint(true); setProjectsHinted(true); }, 2400);
+        const t4 = setTimeout(() => setShowHint(false),    5200);
+        const t5 = setTimeout(() => setProjectsHinted(false), 4400);
+        return () => [t1, t2, t3, t4, t5].forEach(clearTimeout);
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => { hoveredRef.current    = hovered; },    [hovered]);
+    useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
+
+    // Orbital physics loop — 60 fps, mutates MotionValues directly (zero React re-renders)
+    useAnimationFrame((t) => {
+        if (reduced) return;
+        if (mountTimeRef.current === null) mountTimeRef.current = t;
+        const elapsed = t - mountTimeRef.current;
+        if (elapsed < 2000) return;
+
+        orbitNodes.forEach((node, i) => {
+            const p     = ORBITAL_PARAMS[i];
+            const isHov = hoveredRef.current    === node.id;
+            const isSel = selectedIdRef.current === node.id;
+            scaleTargets.current[i]   = isSel ? 0.02 : isHov ? 0.18 : 1;
+            scaleCurrents.current[i] += (scaleTargets.current[i] - scaleCurrents.current[i]) * 0.025;
+            const s = scaleCurrents.current[i];
+            nodeMotionX[i].set(Math.sin(p.omegaX * elapsed + p.phaseX) * p.amplX * s);
+            nodeMotionY[i].set(Math.sin(p.omegaY * elapsed + p.phaseY) * p.amplY * s);
+        });
+    });
 
     // Responsive dims
     useEffect(() => {
@@ -258,7 +141,6 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
         return () => ro.disconnect();
     }, []);
 
-    // Reset camera when selection cleared
     useEffect(() => {
         if (selectedId === null) setCamera({ x: 0, y: 0, scale: 1 });
     }, [selectedId]);
@@ -286,7 +168,7 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
         return map;
     }, [positions, childPos]);
 
-    // Cross-edges: project children → skill orbit nodes (derived from capabilities)
+    // Cross-edges: project children → skill orbit nodes
     const crossEdges = useMemo(() => {
         if (!expanded) return [];
         const edges: Array<{ childId: string; orbitId: string; childIdx: number; orbitIdx: number }> = [];
@@ -333,7 +215,6 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
         return ids;
     }, [expanded]);
 
-    // Stable refs for keyboard handler
     const kbFocusRef  = useRef(kbFocus);
     const navOrderRef = useRef(navOrder);
     const expandedRef = useRef(expanded);
@@ -402,6 +283,8 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
         setKbFocus(null);
         if (id === 'projects') setExpanded(p => !p);
         moveCamera(x, y);
+        setPulseSourceId(id);
+        setTimeout(() => setPulseSourceId(null), 1400);
         setTimeout(() => onSelect({ ...data, id } as SelectedNode), 350);
     };
 
@@ -479,99 +362,95 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
 
                     <ellipse cx={cx} cy={cy} rx={orbitR * 0.78} ry={orbitR * 0.78} fill="url(#cglow)" />
 
-                    {/* Orbit connection lines — appear after nodes are in */}
-                    <motion.g
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: linesVisible ? 1 : 0 }}
-                        transition={{ duration: 0.55, ease: 'easeOut' }}
-                    >
-                        {/* Focus lens glow on active path */}
-                        <AnimatePresence>
-                            {positions.map((pos, i) => {
-                                const node   = orbitNodes[i];
-                                const active = selectedId === node.id || (node.id === 'projects' && isChildSelected);
-                                if (!active) return null;
-                                const dx = pos.x - cx, dy = pos.y - cy, len = Math.hypot(dx, dy);
-                                const gs = CENTER_SIZE / 2, ge = NODE_SIZE / 2;
-                                return (
-                                    <motion.line key={`lens-${node.id}`}
-                                        x1={cx + dx * (gs / len)} y1={cy + dy * (gs / len)}
-                                        x2={cx + dx * ((len - ge) / len)} y2={cy + dy * ((len - ge) / len)}
-                                        stroke={ACCENT} strokeWidth={7} strokeLinecap="round"
-                                        initial={{ opacity: 0 }} animate={{ opacity: 0.09 }} exit={{ opacity: 0 }}
-                                        transition={{ duration: 0.4 }}
-                                    />
-                                );
-                            })}
-                        </AnimatePresence>
-
-                        {/* Orbit connections */}
+                    {/* Focus lens glow */}
+                    <AnimatePresence>
                         {positions.map((pos, i) => {
                             const node   = orbitNodes[i];
                             const active = selectedId === node.id || (node.id === 'projects' && isChildSelected);
+                            if (!active) return null;
                             const dx = pos.x - cx, dy = pos.y - cy, len = Math.hypot(dx, dy);
-                            const gapStart = CENTER_SIZE / 2 + 4, gapEnd = NODE_SIZE / 2 + 4;
+                            const gs = CENTER_SIZE / 2, ge = NODE_SIZE / 2;
                             return (
-                                <motion.line key={node.id}
-                                    x1={cx + dx * (gapStart / len)} y1={cy + dy * (gapStart / len)}
-                                    x2={cx + dx * ((len - gapEnd) / len)} y2={cy + dy * ((len - gapEnd) / len)}
-                                    stroke={active ? ACCENT : 'rgba(154,176,204,0.2)'}
-                                    strokeWidth={active ? 1.5 : 1}
-                                    strokeDasharray={active ? '5 5' : undefined}
-                                    animate={active ? { strokeDashoffset: [0, -10] } : {}}
-                                    transition={{ duration: 0.9, repeat: Infinity, ease: 'linear' }}
-                                />
-                            );
-                        })}
-                    </motion.g>
-
-                    {/* Child connections */}
-                    <AnimatePresence>
-                        {expanded && childPos.map((pos, i) => {
-                            const child  = PROJECTS_CHILDREN[i];
-                            if (!child) return null;
-                            const active = selectedId === child.id;
-                            const dx = pos.x - projectsPos.x, dy = pos.y - projectsPos.y, len = Math.hypot(dx, dy);
-                            const g1 = NODE_SIZE / 2 + 3, g2 = CHILD_SIZE / 2 + 3;
-                            return (
-                                <motion.line key={child.id}
-                                    x1={projectsPos.x + dx * (g1 / len)} y1={projectsPos.y + dy * (g1 / len)}
-                                    x2={projectsPos.x + dx * ((len - g2) / len)} y2={projectsPos.y + dy * ((len - g2) / len)}
-                                    stroke={active ? ACCENT : 'rgba(154,176,204,0.12)'}
-                                    strokeWidth={active ? 1.2 : 0.75}
-                                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                    transition={{ duration: 0.25, delay: i * 0.04 }}
+                                <motion.line key={`lens-${node.id}`}
+                                    x1={cx + dx * (gs / len)} y1={cy + dy * (gs / len)}
+                                    x2={cx + dx * ((len - ge) / len)} y2={cy + dy * ((len - ge) / len)}
+                                    stroke={ACCENT} strokeWidth={7} strokeLinecap="round"
+                                    initial={{ opacity: 0 }} animate={{ opacity: 0.07 }} exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.5 }}
                                 />
                             );
                         })}
                     </AnimatePresence>
 
-                    {/* Cross-edges: project children → skill orbit nodes */}
+                    {/* Primary orbit routes */}
+                    {positions.map((pos, i) => {
+                        const node      = orbitNodes[i];
+                        const active    = selectedId === node.id || (node.id === 'projects' && isChildSelected);
+                        const dx = pos.x - cx, dy = pos.y - cy, len = Math.hypot(dx, dy);
+                        const gS = CENTER_SIZE / 2 + 4, gE = NODE_SIZE / 2 + 4;
+                        const drawDelay = 0.55 + orbitRevealOrder[i] * 0.13;
+                        return (
+                            <EdgeLine
+                                key={node.id}
+                                x1={cx + dx * (gS / len)} y1={cy + dy * (gS / len)}
+                                x2={cx + dx * ((len - gE) / len)} y2={cy + dy * ((len - gE) / len)}
+                                type="primary"
+                                drawDelay={drawDelay}
+                                drawDuration={0.78}
+                                isActive={active}
+                                isEdgeHovered={hovered === node.id}
+                                isPulsing={pulseSourceId === node.id}
+                                reduced={reduced}
+                            />
+                        );
+                    })}
+
+                    {/* Child routes */}
+                    <AnimatePresence>
+                        {expanded && childPos.map((pos, i) => {
+                            const child = PROJECTS_CHILDREN[i];
+                            if (!child) return null;
+                            const dx = pos.x - projectsPos.x, dy = pos.y - projectsPos.y, len = Math.hypot(dx, dy);
+                            const g1 = NODE_SIZE / 2 + 3, g2 = CHILD_SIZE / 2 + 3;
+                            return (
+                                <EdgeLine
+                                    key={child.id}
+                                    x1={projectsPos.x + dx * (g1 / len)} y1={projectsPos.y + dy * (g1 / len)}
+                                    x2={projectsPos.x + dx * ((len - g2) / len)} y2={projectsPos.y + dy * ((len - g2) / len)}
+                                    type="child"
+                                    drawDelay={i * 0.07}
+                                    drawDuration={0.38}
+                                    isActive={selectedId === child.id}
+                                    isEdgeHovered={hovered === child.id}
+                                    isPulsing={pulseSourceId === child.id || pulseSourceId === 'projects'}
+                                    reduced={reduced}
+                                />
+                            );
+                        })}
+                    </AnimatePresence>
+
+                    {/* Cross-routes */}
                     <AnimatePresence>
                         {crossEdges.map((edge, ei) => {
                             const cPos = childPos[edge.childIdx];
                             const oPos = positions[edge.orbitIdx];
                             if (!cPos || !oPos) return null;
-                            const isActive = selectedId === edge.childId || selectedId === edge.orbitId
-                                || hovered === edge.childId || hovered === edge.orbitId;
+                            const isActive = selectedId === edge.childId || selectedId === edge.orbitId;
+                            const isHov    = hovered === edge.childId || hovered === edge.orbitId;
                             const dx = oPos.x - cPos.x, dy = oPos.y - cPos.y, len = Math.hypot(dx, dy);
                             const g1 = CHILD_SIZE / 2 + 2, g2 = NODE_SIZE / 2 + 2;
-                            const x1 = cPos.x + dx * (g1 / len), y1 = cPos.y + dy * (g1 / len);
-                            const x2 = cPos.x + dx * ((len - g2) / len), y2 = cPos.y + dy * ((len - g2) / len);
                             return (
-                                <motion.path
+                                <EdgeLine
                                     key={`cross-${edge.childId}-${edge.orbitId}`}
-                                    d={`M ${x1} ${y1} L ${x2} ${y2}`}
-                                    fill="none"
-                                    strokeWidth={isActive ? 1 : 0.55}
-                                    initial={{ pathLength: 0, opacity: 0 }}
-                                    animate={{
-                                        pathLength: 1,
-                                        opacity: 1,
-                                        stroke: isActive ? 'rgba(61,227,255,0.50)' : 'rgba(61,227,255,0.10)',
-                                    }}
-                                    exit={{ pathLength: 0, opacity: 0 }}
-                                    transition={{ duration: 0.55, delay: ei * 0.045, ease: 'easeOut' }}
+                                    x1={cPos.x + dx * (g1 / len)} y1={cPos.y + dy * (g1 / len)}
+                                    x2={cPos.x + dx * ((len - g2) / len)} y2={cPos.y + dy * ((len - g2) / len)}
+                                    type="cross"
+                                    drawDelay={ei * 0.055}
+                                    drawDuration={0.5}
+                                    isActive={isActive || isHov}
+                                    isEdgeHovered={isHov}
+                                    isPulsing={pulseSourceId === edge.childId || pulseSourceId === edge.orbitId}
+                                    reduced={reduced}
                                 />
                             );
                         })}
@@ -602,16 +481,31 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
                     animate={{ opacity: 1, scale: 1 }}
                     transition={reduced ? {} : { duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
                 >
+                    {!reduced && (
+                        <motion.div
+                            className="absolute rounded-full pointer-events-none"
+                            style={{
+                                left: cx - CENTER_SIZE / 2 - 6,
+                                top:  cy - CENTER_SIZE / 2 - 6,
+                                width: CENTER_SIZE + 12,
+                                height: CENTER_SIZE + 12,
+                                border: '1px solid rgba(61,227,255,0.28)',
+                            }}
+                            animate={{ scale: [1, 1.09, 1], opacity: [0.5, 0.08, 0.5] }}
+                            transition={{ duration: 5.0, repeat: Infinity, ease: [0.45, 0, 0.55, 1] }}
+                        />
+                    )}
                     <NodeCircle
                         id="center" x={cx} y={cy} size={CENTER_SIZE} label="Marc Smith" isCenter
                         isActive={!selectedId} isDimmed={false} isHovered={hovered === 'center'}
+                        disableInternalDrift
                         driftIdx={-1} reduced={reduced}
                         onClick={(e) => { e.stopPropagation(); onSelect(null); setCamera({ x: 0, y: 0, scale: 1 }); setKbFocus(null); }}
                         onHover={(on) => handleHover('center', cx, cy, 'Marc Smith', 'AI/ML Engineer & Full-Stack Developer', on)}
                     />
                 </motion.div>
 
-                {/* Currently building status — below center node */}
+                {/* Currently building status */}
                 <div
                     className="absolute pointer-events-none text-center"
                     style={{ left: cx - 80, top: cy + CENTER_SIZE / 2 + 10, width: 160 }}
@@ -621,15 +515,18 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
                     </span>
                 </div>
 
-                {/* Orbit nodes — appear in random order */}
+                {/* Orbit nodes */}
                 {orbitNodes.map((node, i) => {
-                    const pos       = positions[i];
-                    const Icon      = ICONS[node.id];
+                    const pos        = positions[i];
+                    const Icon       = ICONS[node.id];
                     const entryDelay = 0.3 + orbitRevealOrder[i] * 0.13;
                     return (
                         <motion.div
                             key={`${node.id}-entrance`}
-                            style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
+                            style={{
+                                position: 'absolute', inset: 0, pointerEvents: 'none',
+                                x: nodeMotionX[i], y: nodeMotionY[i],
+                            }}
                             initial={reduced ? {} : { opacity: 0, scale: 0.5 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={reduced ? {} : { duration: 0.4, delay: entryDelay, ease: [0.16, 1, 0.3, 1] }}
@@ -644,6 +541,8 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
                                 expandable={node.id === 'projects'}
                                 isExpanded={expanded && node.id === 'projects'}
                                 isHinted={node.id === 'projects' && projectsHinted && !hasInteracted}
+                                disableInternalDrift
+                                depthScale={ORBIT_DEPTHS[i]}
                                 driftIdx={i} reduced={reduced}
                                 onClick={(e) => handleNodeClick(node.id, pos.x, pos.y, node, e)}
                                 onHover={(on) => handleHover(node.id, pos.x, pos.y, node.label, node.tooltip, on)}
@@ -715,7 +614,7 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
             </AnimatePresence>
 
             {/* Bottom hint */}
-            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 pointer-events-none">
+            <div className="absolute bottom-5 left-5 pointer-events-none">
                 <p className="font-mono text-[10px] text-muted/35 tracking-widest">
                     click · <span style={{ color: 'rgba(61,227,255,0.4)' }}>↑↓</span> keys · press <span className="text-accent/50">/</span> to search
                 </p>

@@ -2,9 +2,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Github, ExternalLink, Mail, Linkedin, FileText } from 'lucide-react';
 import { orbitNodes, skillGroups, workExperience, educationData, certifications } from '../data/brainData';
 
-const ACCENT = '#3DE3FF';
-const MUTED  = '#9AB0CC';
-const TEXT   = '#E6EEF9';
+import { ACCENT, MUTED, TEXT } from '../theme';
 
 interface Props { onBack: () => void; showBack?: boolean; }
 
@@ -85,7 +83,7 @@ export const RecruiterView = ({ onBack, showBack = true }: Props) => {
                 {/* ── Hero ── */}
                 <motion.section {...fadeUp(0)}>
                     <p className="font-mono text-[10px] tracking-[0.4em] uppercase mb-3" style={{ color: ACCENT }}>
-                        Portfolio · 2025
+                        Portfolio · {new Date().getFullYear()}
                     </p>
                     <h1 className="font-sans font-bold text-4xl mb-2" style={{ color: TEXT, letterSpacing: '-0.5px' }}>
                         Marc Smith

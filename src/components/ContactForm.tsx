@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Send, CheckCircle, AlertCircle } from 'lucide-react';
+import { ACCENT } from '../theme';
 
 // Create a free account at formspree.io and replace this with your form ID
 const FORMSPREE_ID = 'YOUR_FORM_ID';
@@ -40,10 +41,15 @@ export const ContactForm = () => {
     };
 
     if (status === 'sent') {
+        const viaMailto = FORMSPREE_ID === 'YOUR_FORM_ID';
         return (
-            <div className="flex items-center gap-2 text-sm font-mono" style={{ color: '#3DE3FF' }}>
+            <div className="flex items-center gap-2 text-sm font-mono" style={{ color: ACCENT }}>
                 <CheckCircle size={13} />
-                <span>Message sent — I'll get back to you soon.</span>
+                <span>
+                    {viaMailto
+                        ? 'Email client opened — send the message from there.'
+                        : "Message sent — I'll get back to you soon."}
+                </span>
             </div>
         );
     }
@@ -87,7 +93,7 @@ export const ContactForm = () => {
                 style={{
                     background: 'rgba(61,227,255,0.08)',
                     border: '1px solid rgba(61,227,255,0.22)',
-                    color: '#3DE3FF',
+                    color: ACCENT,
                     opacity: canSubmit ? 1 : 0.45,
                     cursor: canSubmit ? 'pointer' : 'not-allowed',
                 }}
