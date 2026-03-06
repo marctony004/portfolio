@@ -286,16 +286,17 @@ const GestureDemo = ({ onClose }: Props) => {
                     {permission === 'denied' && <DeniedScreen onRetry={handleRetry} />}
                     {permission === 'error'  && <ErrorScreen  onRetry={handleRetry} />}
 
-                    {permission === 'granted' && !isLoading && (
-                        <motion.div
-                            className="flex flex-1 overflow-hidden"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ duration: 0.3 }}
-                        >
-                            {/* ── Left: webcam + canvas overlay ── */}
-                            <div className="relative flex-1 flex items-center justify-center bg-black/30 overflow-hidden"
-                                style={{ borderRight: '1px solid rgba(61,227,255,0.08)' }}>
+                    {/* Always mounted so videoRef is available when start() runs */}
+                    <motion.div
+                        className="flex flex-1 overflow-hidden"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: permission === 'granted' && !isLoading ? 1 : 0 }}
+                        style={{ display: permission === 'granted' ? 'flex' : 'none' }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        {/* ── Left: webcam + canvas overlay ── */}
+                        <div className="relative flex-1 flex items-center justify-center bg-black/30 overflow-hidden"
+                            style={{ borderRight: '1px solid rgba(61,227,255,0.08)' }}>
                                 <video
                                     ref={videoRef}
                                     autoPlay
@@ -410,7 +411,6 @@ const GestureDemo = ({ onClose }: Props) => {
                                 </p>
                             </div>
                         </motion.div>
-                    )}
                 </div>
             </motion.div>
         </motion.div>
