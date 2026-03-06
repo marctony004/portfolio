@@ -6,6 +6,7 @@ import { BrainMap } from './components/BrainMap';
 import { InspectorPanel } from './components/InspectorPanel';
 import { CommandPalette } from './components/CommandPalette';
 import { RecruiterView } from './components/RecruiterView';
+import { MobileLanding } from './components/MobileLanding';
 import { PortfolioAssistant } from './components/PortfolioAssistant';
 import type { OrbitNodeData, ChildNodeData } from './data/brainData';
 
@@ -19,8 +20,9 @@ function App() {
     const [selected,      setSelected]      = useState<SelectedNode | null>(null);
     const [palette,       setPalette]       = useState(false);
     const [jumpTo,        setJumpTo]        = useState<string | null>(null);
-    const [isMobile,      setIsMobile]      = useState(false);
-    const [recruiterMode, setRecruiterMode] = useState(false);
+    const [isMobile,        setIsMobile]        = useState(false);
+    const [mobilePastGate,  setMobilePastGate]  = useState(false);
+    const [recruiterMode,   setRecruiterMode]   = useState(false);
     const [gestureDemo,   setGestureDemo]   = useState(false);
 
     // Responsive check
@@ -95,7 +97,10 @@ function App() {
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.8 }}
                     >
-                        {isMobile ? (
+                        {isMobile && !mobilePastGate ? (
+                            /* Mobile: best-on-desktop gate */
+                            <MobileLanding onContinue={() => setMobilePastGate(true)} />
+                        ) : isMobile && mobilePastGate ? (
                             /* Mobile: recruiter-style scrollable view */
                             <div className="w-full overflow-y-auto">
                                 <RecruiterView showBack={false} onBack={() => {}} />
