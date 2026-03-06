@@ -150,9 +150,9 @@ export function useGestureDetection() {
                             [5,9],[9,13],[13,17],
                         ];
                         for (const [a, b] of connections) {
-                            const ax = (1 - lms[a].x) * w;
+                            const ax = lms[a].x * w;
                             const ay = lms[a].y * h;
-                            const bx = (1 - lms[b].x) * w;
+                            const bx = lms[b].x * w;
                             const by = lms[b].y * h;
                             ctx.beginPath();
                             ctx.moveTo(ax, ay);
@@ -160,7 +160,7 @@ export function useGestureDetection() {
                             ctx.stroke();
                         }
                         for (const lm of lms) {
-                            const dx = (1 - lm.x) * w;
+                            const dx = lm.x * w;
                             const dy = lm.y * h;
                             ctx.beginPath();
                             ctx.arc(dx, dy, 3.5, 0, Math.PI * 2);
