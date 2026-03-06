@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BootSequence } from './components/BootSequence';
 import { Intro } from './components/Intro';
@@ -8,6 +8,8 @@ import { CommandPalette } from './components/CommandPalette';
 import { RecruiterView } from './components/RecruiterView';
 import { PortfolioAssistant } from './components/PortfolioAssistant';
 import type { OrbitNodeData, ChildNodeData } from './data/brainData';
+
+const GestureDemo = lazy(() => import('./components/GestureDemo'));
 
 type SelectedNode = (OrbitNodeData | ChildNodeData) & { id: string };
 
@@ -19,6 +21,7 @@ function App() {
     const [jumpTo,        setJumpTo]        = useState<string | null>(null);
     const [isMobile,      setIsMobile]      = useState(false);
     const [recruiterMode, setRecruiterMode] = useState(false);
+    const [gestureDemo,   setGestureDemo]   = useState(false);
 
     // Responsive check
     useEffect(() => {
@@ -121,6 +124,7 @@ function App() {
                                     node={selected}
                                     onClose={() => setSelected(null)}
                                     onBreadcrumb={() => { setSelected(null); setJumpTo('projects'); }}
+                                    onGestureDemo={() => setGestureDemo(true)}
                                 />
 
                                 {/* Recruiter mode toggle */}
@@ -135,6 +139,21 @@ function App() {
                                     }}
                                 >
                                     <span style={{ color: '#3DE3FF', fontSize: 11 }}>⊞</span> Recruiter View
+                                </button>
+
+                                {/* Gesture demo global trigger */}
+                                <button
+                                    onClick={() => setGestureDemo(true)}
+                                    className="fixed top-12 left-4 z-50 flex items-center gap-1.5 font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full transition-colors hover:text-accent"
+                                    style={{
+                                        background: 'rgba(11,18,32,0.85)',
+                                        border: '1px solid rgba(61,227,255,0.15)',
+                                        backdropFilter: 'blur(10px)',
+                                        color: 'rgba(154,176,204,0.6)',
+                                        marginTop: '0.4rem',
+                                    }}
+                                >
+                                    <span style={{ color: '#3DE3FF', fontSize: 11 }}>✋</span> Gesture Demo
                                 </button>
                             </>
                         )}
@@ -151,6 +170,15 @@ function App() {
 
             {/* AI Portfolio Assistant */}
             {entered && <PortfolioAssistant />}
+
+            {/* Gesture Demo overlay — lazy loaded */}
+            <AnimatePresence>
+                {gestureDemo && (
+                    <Suspense fallback={null}>
+                        <GestureDemo onClose={() => setGestureDemo(false)} />
+                    </Suspense>
+                )}
+            </AnimatePresence>
 
             {/* "/" hint when no inspector open */}
             {entered && !isMobile && !selected && (

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Github, ExternalLink, Mail, Linkedin, ChevronLeft, Copy, Check } from 'lucide-react';
+import { X, Github, ExternalLink, Mail, Linkedin, ChevronLeft, Copy, Check, Hand } from 'lucide-react';
 import { orbitNodes } from '../data/brainData';
 import type { OrbitNodeData, ChildNodeData } from '../data/brainData';
 import { ContactForm } from './ContactForm';
@@ -12,10 +12,11 @@ interface Props {
     node: AnyNode | null;
     onClose: () => void;
     onBreadcrumb?: () => void;
+    onGestureDemo?: () => void;
 }
 
 
-export const InspectorPanel = ({ node, onClose, onBreadcrumb }: Props) => {
+export const InspectorPanel = ({ node, onClose, onBreadcrumb, onGestureDemo }: Props) => {
     const links     = (node as OrbitNodeData)?.links;
     const childNode = node as ChildNodeData;
     const pipeline  = childNode?.pipeline;
@@ -94,6 +95,27 @@ export const InspectorPanel = ({ node, onClose, onBreadcrumb }: Props) => {
                             <p className="font-mono text-[10px] text-muted/60 tracking-widest uppercase mb-2">Summary</p>
                             <p className="text-muted text-sm leading-relaxed">{node.summary}</p>
                         </div>
+
+                        {/* Gesture demo CTA — only on No Strings Attached */}
+                        {node.id === 'no-strings' && onGestureDemo && (
+                            <motion.button
+                                onClick={onGestureDemo}
+                                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-mono text-xs"
+                                style={{
+                                    background: 'rgba(61,227,255,0.07)',
+                                    border: '1px solid rgba(61,227,255,0.22)',
+                                    color: ACCENT,
+                                }}
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                                whileHover={{ boxShadow: '0 0 24px rgba(61,227,255,0.15)', borderColor: 'rgba(61,227,255,0.4)' }}
+                                whileTap={{ scale: 0.98 }}
+                            >
+                                <Hand size={13} />
+                                Try Gesture Demo
+                            </motion.button>
+                        )}
 
                         {/* Pipeline diagram */}
                         {pipeline && pipeline.length > 0 && (
