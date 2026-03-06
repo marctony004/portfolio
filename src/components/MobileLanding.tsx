@@ -3,9 +3,10 @@ import { motion } from 'framer-motion';
 
 interface Props {
     onContinue: () => void;
+    onViewMap: () => void;
 }
 
-export function MobileLanding({ onContinue }: Props) {
+export function MobileLanding({ onContinue, onViewMap }: Props) {
     const [copied, setCopied] = useState(false);
 
     const copyLink = () => {
@@ -86,6 +87,18 @@ export function MobileLanding({ onContinue }: Props) {
                     }}
                 >
                     VIEW RESUME ANYWAY →
+                </button>
+
+                <button
+                    onClick={onViewMap}
+                    className="w-full font-mono text-xs tracking-widest py-3 px-4 rounded-lg transition-all"
+                    style={{
+                        background: 'transparent',
+                        border: '1px solid rgba(154,176,204,0.15)',
+                        color: 'rgba(154,176,204,0.45)',
+                    }}
+                >
+                    TRY BRAIN MAP ANYWAY
                 </button>
             </motion.div>
 

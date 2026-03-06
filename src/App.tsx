@@ -22,6 +22,7 @@ function App() {
     const [jumpTo,        setJumpTo]        = useState<string | null>(null);
     const [isMobile,        setIsMobile]        = useState(false);
     const [mobilePastGate,  setMobilePastGate]  = useState(false);
+    const [mobileViewMap,   setMobileViewMap]   = useState(false);
     const [recruiterMode,   setRecruiterMode]   = useState(false);
     const [gestureDemo,   setGestureDemo]   = useState(false);
 
@@ -97,9 +98,12 @@ function App() {
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.8 }}
                     >
-                        {isMobile && !mobilePastGate ? (
+                        {isMobile && !mobilePastGate && !mobileViewMap ? (
                             /* Mobile: best-on-desktop gate */
-                            <MobileLanding onContinue={() => setMobilePastGate(true)} />
+                            <MobileLanding
+                                onContinue={() => setMobilePastGate(true)}
+                                onViewMap={() => setMobileViewMap(true)}
+                            />
                         ) : isMobile && mobilePastGate ? (
                             /* Mobile: recruiter-style scrollable view */
                             <div className="w-full overflow-y-auto">
