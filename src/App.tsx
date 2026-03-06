@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { BootSequence } from './components/BootSequence';
 import { Intro } from './components/Intro';
 import { BrainMap } from './components/BrainMap';
 import { InspectorPanel } from './components/InspectorPanel';
@@ -10,6 +11,7 @@ import type { OrbitNodeData, ChildNodeData } from './data/brainData';
 type SelectedNode = (OrbitNodeData | ChildNodeData) & { id: string };
 
 function App() {
+    const [bootDone,      setBootDone]      = useState(false);
     const [entered,       setEntered]       = useState(false);
     const [selected,      setSelected]      = useState<SelectedNode | null>(null);
     const [palette,       setPalette]       = useState(false);
@@ -77,7 +79,9 @@ function App() {
             </svg>
 
             <AnimatePresence mode="wait">
-                {!entered ? (
+                {!bootDone ? (
+                    <BootSequence key="boot" onComplete={() => setBootDone(true)} />
+                ) : !entered ? (
                     <Intro key="intro" onEnter={() => setEntered(true)} />
                 ) : (
                     <motion.div
