@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Marc Smith — Resume</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:      #0B1220;
+            --surface: #111A2E;
+            --accent:  #3DE3FF;
+            --text:    #E6EEF9;
+            --muted:   #9AB0CC;
+            --border:  rgba(61,227,255,0.12);
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            padding: 48px 40px;
+            max-width: 860px;
+            margin: 0 auto;
+        }
+
+        /* ── Header ── */
+        .header {
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 24px;
+            margin-bottom: 28px;
+        }
+        .header-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+        .name {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.5px;
+        }
+        .title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--accent);
+            margin-top: 4px;
+            letter-spacing: 0.05em;
+        }
+        .contact-block {
+            text-align: right;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--muted);
+            line-height: 1.9;
+        }
+        .contact-block a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+        .contact-block a:hover { text-decoration: underline; }
+
+        /* ── Section ── */
+        .section { margin-bottom: 28px; }
+        .section-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            font-weight: 500;
+            color: var(--accent);
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* ── Summary ── */
+        .summary {
+            color: var(--muted);
+            font-size: 13.5px;
+            line-height: 1.7;
+        }
+
+        /* ── Skills grid ── */
+        .skills-grid { display: flex; flex-direction: column; gap: 6px; }
+        .skill-row { display: flex; gap: 8px; align-items: baseline; }
+        .skill-cat {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--accent);
+            min-width: 130px;
+            flex-shrink: 0;
+        }
+        .skill-val { color: var(--muted); font-size: 12.5px; }
+
+        /* ── Entry (project / job / education) ── */
+        .entry { margin-bottom: 18px; }
+        .entry-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 4px;
+        }
+        .entry-title { font-size: 14.5px; font-weight: 600; color: var(--text); }
+        .entry-meta {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+        .entry-subtitle {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10.5px;
+            color: var(--accent);
+            margin-bottom: 6px;
+        }
+        .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+        .chip {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9.5px;
+            color: var(--accent);
+            background: rgba(61,227,255,0.06);
+            border: 1px solid rgba(61,227,255,0.18);
+            border-radius: 4px;
+            padding: 2px 7px;
+        }
+        ul.bullets { padding-left: 0; list-style: none; }
+        ul.bullets li {
+            display: flex;
+            gap: 8px;
+            color: var(--muted);
+            font-size: 12.5px;
+            margin-bottom: 3px;
+        }
+        ul.bullets li::before {
+            content: '▸';
+            color: var(--accent);
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        /* ── Certs ── */
+        .certs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 6px;
+        }
+        .cert {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--muted);
+            display: flex;
+            gap: 6px;
+        }
+        .cert::before { content: '·'; color: var(--accent); }
+
+        /* ── Print ── */
+        @media print {
+            body {
+                background: #fff;
+                color: #1a1a2e;
+                padding: 28px 32px;
+                font-size: 12px;
+            }
+            :root {
+                --bg: #fff; --surface: #f5f7fb; --accent: #0066aa;
+                --text: #111; --muted: #444; --border: #d0d8e8;
+            }
+            .chip { border-color: #aaa; background: #f0f4f8; }
+            a { color: #0066aa; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-top">
+            <div>
+                <div class="name">Marc Smith</div>
+                <div class="title">AI / ML Engineer · Full-Stack Developer</div>
+            </div>
+            <div class="contact-block">
+                772-200-9586<br>
+                <a href="mailto:marc.tonysmith@gmail.com">marc.tonysmith@gmail.com</a><br>
+                <a href="https://github.com/marctony004" target="_blank">github.com/marctony004</a><br>
+                <a href="https://www.linkedin.com/in/marc-smith-786685336" target="_blank">linkedin.com/in/marc-smith-786685336</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="section">
+        <div class="section-label">Professional Summary</div>
+        <p class="summary">
+            AI/ML practitioner with a background in leading high-impact projects — from managing large retail teams and
+            coordinating community events to building full-stack AI tools that solve real problems. Experienced in training
+            machine learning models, deploying computer vision pipelines, and integrating OpenAI/Azure APIs. Pursuing dual
+            degrees in Applied Artificial Intelligence and Business Intelligence. I approach every project with intention,
+            structure, and curiosity — building tools that are not only functional but meaningful for real-world application.
+        </p>
+    </div>
+
+    <!-- Skills -->
+    <div class="section">
+        <div class="section-label">Technical Skills</div>
+        <div class="skills-grid">
+            <div class="skill-row"><span class="skill-cat">Languages:</span><span class="skill-val">Python, Java, SQL, TypeScript, Dart</span></div>
+            <div class="skill-row"><span class="skill-cat">Machine Learning:</span><span class="skill-val">Scikit-learn, TensorFlow, PyTorch, Pandas, NumPy, Keras, SVM, Linear Regression, CNN, OpenCV</span></div>
+            <div class="skill-row"><span class="skill-cat">Deep Learning:</span><span class="skill-val">CNNs, RNNs, Transformers, GANs, NVIDIA Labs</span></div>
+            <div class="skill-row"><span class="skill-cat">AI / LLMs:</span><span class="skill-val">Azure OpenAI GPT-4, Gemini AI, Vapi, RAG, pgvector, SymPy, NLP pipelines</span></div>
+            <div class="skill-row"><span class="skill-cat">Frameworks:</span><span class="skill-val">React 19, Flutter, FastAPI, Supabase, Zustand, Tailwind CSS v4, Chrome MV3</span></div>
+            <div class="skill-row"><span class="skill-cat">Tools:</span><span class="skill-val">Azure AI Studio, Git, Firebase, Tesseract OCR, Google ML Kit, Tableau, Power BI, Scene Builder</span></div>
+            <div class="skill-row"><span class="skill-cat">Databases:</span><span class="skill-val">PostgreSQL, MySQL, Microsoft SQL Server, Oracle, Supabase (pgvector)</span></div>
+            <div class="skill-row"><span class="skill-cat">Other:</span><span class="skill-val">Project Management, RESTful APIs, Version Control, Leadership, Team Management, Microsoft Office</span></div>
+        </div>
+    </div>
+
+    <!-- Projects -->
+    <div class="section">
+        <div class="section-label">Projects</div>
+
+        <div class="entry">
+            <div class="entry-header">
+                <span class="entry-title">AI Math Notes</span>
+                <span class="entry-meta">Computer Vision · Flutter / FastAPI</span>
+            </div>
+            <div class="chips"><span class="chip">Flutter</span><span class="chip">FastAPI</span><span class="chip">SymPy</span><span class="chip">Google ML Kit</span><span class="chip">TrOCR</span><span class="chip">Azure OpenAI</span></div>
+            <ul class="bullets">
+                <li>Multi-modal handwriting recognition using TrOCR + Google ML Kit for algebra, calculus, and geometry</li>
+                <li>Azure OpenAI GPT-4 Turbo for contextual step-by-step math explanations from raw handwritten input</li>
+                <li>Full mobile app with theme selection, date sync, and stylus-exclusive interface options</li>
+            </ul>
+        </div>
+
+        <div class="entry">
+            <div class="entry-header">
+                <span class="entry-title">No Strings Attached — Gesture-Controlled Music System</span>
+                <span class="entry-meta">Computer Vision · Python / Tone.js</span>
+            </div>
+            <div class="chips"><span class="chip">Python</span><span class="chip">MediaPipe</span><span class="chip">OpenCV</span><span class="chip">Tone.js</span></div>
+            <ul class="bullets">
+                <li>21-point hand landmark tracking mapped to musical notes, beats, and effects — zero hardware required</li>
+                <li>Custom Tone.js audio engine achieving sub-50ms sound latency</li>
+                <li>Full pipeline: camera → gesture detection → CV processing → audio synthesis</li>
+            </ul>
+        </div>
+
+        <div class="entry">
+            <div class="entry-header">
+                <span class="entry-title">FlowState 1.0 — AI-Powered Focus Coach</span>
+                <span class="entry-meta">Chrome Extension · React / Gemini LLM</span>
+            </div>
+            <div class="chips"><span class="chip">React</span><span class="chip">TypeScript</span><span class="chip">Chrome MV3</span><span class="chip">Gemini LLM</span><span class="chip">NLP</span></div>
+            <ul class="bullets">
+                <li>Domain-level drift detection via Manifest V3 background service workers and tab monitoring</li>
+                <li>Gemini LLM generates personalized, non-judgmental focus coaching for ADHD users</li>
+                <li>Behavioral data logging (focus sessions, drift events) synthesized into daily summaries via NLP</li>
+            </ul>
+        </div>
+
+        <div class="entry">
+            <div class="entry-header">
+                <span class="entry-title">FlowState 2.0 — AI Workspace for Creative Professionals</span>
+                <span class="entry-meta">Full-Stack · React 19 / Supabase / Vapi</span>
+            </div>
+            <div class="chips"><span class="chip">React 19</span><span class="chip">Supabase</span><span class="chip">Tailwind CSS v4</span><span class="chip">Vapi</span><span class="chip">Gemini AI</span><span class="chip">Zustand</span><span class="chip">pgvector</span></div>
+            <ul class="bullets">
+                <li>Architected React 19 SPA as a specialized project management hub for musicians and producers</li>
+                <li>Vapi + Gemini 1.5 voice AI agent with RAG — users interact with workspace data via natural language</li>
+                <li>Zustand attention-pattern tracking with contextual session memory persisted to Supabase backend</li>
+                <li>pgvector semantic similarity search across ideas, tasks, and projects via Supabase Edge Functions (Deno)</li>
+                <li>Custom NLP task parser decoding intent → structured tasks with deadlines and assignees</li>
+            </ul>
+        </div>
+
+        <div class="entry">
+            <div class="entry-header">
+                <span class="entry-title">Smart Student Calendar</span>
+                <span class="entry-meta">NLP / Computer Vision · Java / JavaFX</span>
+            </div>
+            <div class="chips"><span class="chip">Java</span><span class="chip">JavaFX</span><span class="chip">Google ML Kit</span><span class="chip">OCR</span><span class="chip">Rule-based AI</span></div>
+            <ul class="bullets">
+                <li>OCR pipeline extracts deadlines, exams, and assignments from uploaded PDF/DOCX syllabi</li>
+                <li>Rules-based AI distributes study blocks with zero scheduling conflicts across academic calendar</li>
+                <li>Interactive JavaFX desktop UI with drag-and-drop scheduling, visual progress indicators, and smart reminders</li>
+            </ul>
+        </div>
+
+        <div class="entry">
+            <div class="entry-header">
+                <span class="entry-title">Calories Burned Predictor</span>
+                <span class="entry-meta">Machine Learning · Python / Streamlit</span>
+            </div>
+            <div class="chips"><span class="chip">Python</span><span class="chip">Scikit-learn</span><span class="chip">Streamlit</span><span class="chip">Pandas</span><span class="chip">NumPy</span></div>
+            <ul class="bullets">
+                <li>Linear regression model trained on real-world biometric and exercise data — achieved R²=0.96</li>
+                <li>Deployed as interactive Streamlit web app with real-time sliders and live prediction output</li>
+            </ul>
+        </div>
+
+        <div class="entry">
+            <div class="entry-header">
+                <span class="entry-title">Microsoft Azure AI Studio &amp; Foundry Labs</span>
+                <span class="entry-meta">Cloud AI · Azure AI Studio</span>
+            </div>
+            <div class="chips"><span class="chip">Azure AI Studio</span><span class="chip">Azure AI Services</span><span class="chip">OpenAI GPT-4</span><span class="chip">Responsible AI</span></div>
+            <ul class="bullets">
+                <li>Developed Language, Vision, and Knowledge Mining models in Azure AI Services for testing and evaluation</li>
+                <li>Deployed secure APIs for conversational and classification tasks via Azure OpenAI GPT-4 Turbo endpoints</li>
+                <li>Applied Responsible AI practices using Azure's built-in monitoring and evaluation tools</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Work Experience -->
+    <div class="section">
+        <div class="section-label">Work Experience</div>
+
+        <div class="entry">
+            <div class="entry-header">
+                <span class="entry-title">Apple — Specialist</span>
+                <span class="entry-meta">Brickell City Centre · 2025–Present</span>
+            </div>
+            <ul class="bullets">
+                <li>Delivered world-class customer experience by uncovering needs and personalizing product recommendations</li>
+                <li>Troubleshot hardware/software issues using Apple diagnostic tools with empathy and a solutions-focused approach</li>
+                <li>Identified recurring technical concerns, documented patterns, and communicated insights for root-cause analysis</li>
+                <li>Developed strong relationships with business clients, driving sales growth across Apple ecosystem products</li>
+            </ul>
+        </div>
+
+        <div class="entry">
+            <div class="entry-header">
+                <span class="entry-title">Zumiez — Sr. Store Manager</span>
+                <span class="entry-meta">June 2014 – May 2024</span>
+            </div>
+            <ul class="bullets">
+                <li>Led high-volume retail operations across multiple locations with continuous sales growth through strategic leadership</li>
+                <li>Implemented training programs and succession plans directly linked to KPIs and company strategy</li>
+                <li>Rolled out 100+ new product lines and hosted 30+ in-store events; led market research and promotional strategy</li>
+                <li>Hired and developed a diverse workforce; managed financial resources, performance metrics, and staff allocation</li>
+                <li>Established lasting relationships with schools, youth organizations, and local vendors for brand awareness</li>
+            </ul>
+        </div>
+
+        <div class="entry">
+            <div class="entry-header">
+                <span class="entry-title">Zumiez — Marketing Event Coordinator</span>
+                <span class="entry-meta">2014–2024</span>
+            </div>
+            <ul class="bullets">
+                <li>Spearheaded community events and in-store campaigns including product releases, contests, and charity fundraisers</li>
+                <li>Partnered with skate parks, streetwear brands, schools, and youth organizations for grassroots promotion</li>
+                <li>Managed 30+ in-store marketing activities; developed comprehensive project plans with schedules and risk tracking</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Education -->
+    <div class="section">
+        <div class="section-label">Education</div>
+
+        <div class="entry">
+            <div class="entry-header">
+                <span class="entry-title">B.S. Applied Artificial Intelligence</span>
+                <span class="entry-meta">2024 – 2027</span>
+            </div>
+            <div class="entry-subtitle">Miami Dade College</div>
+            <ul class="bullets">
+                <li>Relevant coursework: Machine Learning, Python, Java, Data Analytics, Computer Vision, NLP &amp; LLMs, Database Design, Robotics, Data Structures, Computational Methods for AI, AI Systems Automation</li>
+            </ul>
+        </div>
+
+        <div class="entry">
+            <div class="entry-header">
+                <span class="entry-title">Business Intelligence Specialist &amp; AI Practitioner</span>
+                <span class="entry-meta">2025</span>
+            </div>
+            <div class="entry-subtitle">Miami Dade College</div>
+        </div>
+
+        <div class="entry">
+            <div class="entry-header">
+                <span class="entry-title">A.S. Supply Chain Management</span>
+                <span class="entry-meta">2016</span>
+            </div>
+            <div class="entry-subtitle">Indian River State College</div>
+        </div>
+    </div>
+
+    <!-- Certifications -->
+    <div class="section">
+        <div class="section-label">Certifications</div>
+        <div class="certs-grid">
+            <div class="cert">Microsoft Azure AI Fundamentals</div>
+            <div class="cert">NVIDIA — Getting Started with Deep Learning</div>
+            <div class="cert">NVIDIA — Rapid Application Dev with LLMs</div>
+            <div class="cert">NVIDIA — Building LLMs with Prompt Engineering</div>
+            <div class="cert">NVIDIA — Introduction to Transformer-based NLP</div>
+            <div class="cert">Google Cybersecurity Fundamentals</div>
+            <div class="cert">Google Project Management Fundamentals</div>
+            <div class="cert">Google AI Essentials</div>
+            <div class="cert">IBM AI Essentials</div>
+        </div>
+    </div>
+
+</body>
+</html>

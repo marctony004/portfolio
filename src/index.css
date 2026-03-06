@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg:           #0B1220;
+  --color-surface:      #111A2E;
+  --color-surface-hover:#16223A;
+  --color-text:         #E6EEF9;
+  --color-muted:        #9AB0CC;
+  --color-accent:       #3DE3FF;
+  --color-border:       rgba(154, 176, 204, 0.18);
+  --color-glow:         rgba(61, 227, 255, 0.22);
+
+  /* keep brand-bg alias for Intro reuse */
+  --color-brand-bg:     #0B1220;
+
+  --font-sans: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  html, body {
+    @apply antialiased scroll-smooth;
+    background: #0B1220;
+    color: #E6EEF9;
+    font-family: "Space Grotesk", system-ui, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background: rgba(61, 227, 255, 0.2);
+    color: #3DE3FF;
+  }
+
+  /* Subtle radial vignette on body */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.45) 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+}
+
+@layer utilities {
+  /* Glass panel */
+  .glass-panel {
+    background: rgba(17, 26, 46, 0.78);
+    border: 1px solid rgba(61, 227, 255, 0.12);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  /* Top highlight on glass panels */
+  .glass-panel-highlight {
+    background: linear-gradient(180deg, rgba(61, 227, 255, 0.06), transparent 60%),
+                rgba(17, 26, 46, 0.78);
+    border: 1px solid rgba(61, 227, 255, 0.12);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  /* Tech chip */
+  .chip {
+    @apply inline-block px-2.5 py-1 rounded text-xs font-mono;
+    background: rgba(61, 227, 255, 0.07);
+    border: 1px solid rgba(61, 227, 255, 0.18);
+    color: #9AB0CC;
+  }
+
+  /* Cursor blink */
+  .cursor-blink {
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+  }
+
+  /* Subtle noise texture via SVG filter */
+  .noise {
+    filter: url(#noise);
+  }
+}
