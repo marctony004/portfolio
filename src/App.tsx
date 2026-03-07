@@ -9,6 +9,8 @@ import { RecruiterView } from './components/RecruiterView';
 import { MobileLanding } from './components/MobileLanding';
 import { ShortcutHelp } from './components/ShortcutHelp';
 import { PortfolioAssistant } from './components/PortfolioAssistant';
+import { GuidedTour } from './components/GuidedTour';
+import { TOUR_STEPS } from './data/tourSteps';
 import type { OrbitNodeData, ChildNodeData } from './data/brainData';
 
 import { SphereTransition } from './components/SphereTransition';
@@ -33,6 +35,19 @@ function App() {
     const [helpOpen,      setHelpOpen]      = useState(false);
     const sphereTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // ── Guided tour state ────────────────────────────────────────────────────
+    const [isTourActive,     setIsTourActive]     = useState(false);
+    const [tourStep,         setTourStep]         = useState(0);
+    const [isTourPaused,     setIsTourPaused]     = useState(false);
+    const [isUserExploring,  setIsUserExploring]  = useState(false);
+    const [isTourComplete,   setIsTourComplete]   = useState(false);
+    const tourTimerRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const tourJumpingRef    = useRef(false);       // true while tour fires a programmatic jump
+    const isTourActiveRef   = useRef(false);
+    const isTourCompleteRef = useRef(false);
+    useEffect(() => { isTourActiveRef.current   = isTourActive; },   [isTourActive]);
+    useEffect(() => { isTourCompleteRef.current = isTourComplete; }, [isTourComplete]);
+
     // Responsive check
     useEffect(() => {
         const check = () => setIsMobile(window.innerWidth < 768);
@@ -41,10 +56,20 @@ function App() {
         return () => window.removeEventListener('resize', check);
     }, []);
 
-    // "/" key opens command palette; Escape closes inspector
+    // "/" key opens command palette; Escape closes inspector / tour
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if (!entered) return;
+            // Escape exits the tour before any other handler
+            if (e.key === 'Escape' && isTourActive) {
+                e.preventDefault();
+                if (tourTimerRef.current) clearTimeout(tourTimerRef.current);
+                setIsTourActive(false);
+                setIsTourComplete(false);
+                setIsUserExploring(false);
+                setIsTourPaused(false);
+                return;
+            }
             if (e.key === '/' && !palette && !helpOpen && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
                 e.preventDefault();
                 setPalette(true);
@@ -59,7 +84,7 @@ function App() {
         };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
-    }, [entered, palette, selected, helpOpen]);
+    }, [entered, palette, selected, helpOpen, isTourActive]);
 
     // Write URL hash when selection changes
     useEffect(() => {
@@ -81,6 +106,111 @@ function App() {
         if (action === 'contact:email')   { window.open('mailto:marc.tonysmith@gmail.com', '_blank'); return; }
         if (action === 'recruiter')       { setRecruiterMode(true); return; }
         if (action.startsWith('node:'))   { setJumpTo(action.slice(5)); }
+    }, []);
+
+    // ── Tour handlers ────────────────────────────────────────────────────────
+
+    /** Fire a tour step: programmatically navigate to the step's target node. */
+    const fireTourStep = useCallback((step: number) => {
+        const s = TOUR_STEPS[step];
+        tourJumpingRef.current = true;
+        if (s.targetNodeId === null) {
+            // Identity step: deselect everything → BrainMap auto-resets camera
+            setSelected(null);
+        } else {
+            setJumpTo(s.targetNodeId);
+        }
+        // Keep the flag high long enough for BrainMap's 350ms jump + onSelect delay
+        setTimeout(() => { tourJumpingRef.current = false; }, 900);
+    }, []);
+
+    const startTour = useCallback(() => {
+        setIsTourActive(true);
+        setTourStep(0);
+        setIsTourPaused(false);
+        setIsUserExploring(false);
+        setIsTourComplete(false);
+        fireTourStep(0);
+    }, [fireTourStep]);
+
+    const exitTour = useCallback(() => {
+        if (tourTimerRef.current) clearTimeout(tourTimerRef.current);
+        setIsTourActive(false);
+        setIsTourComplete(false);
+        setIsUserExploring(false);
+        setIsTourPaused(false);
+    }, []);
+
+    const handleTourNext = useCallback(() => {
+        if (tourTimerRef.current) clearTimeout(tourTimerRef.current);
+        const next = tourStep + 1;
+        if (next >= TOUR_STEPS.length) { setIsTourComplete(true); return; }
+        setTourStep(next);
+        setIsUserExploring(false);
+        setIsTourPaused(false);
+        fireTourStep(next);
+    }, [tourStep, fireTourStep]);
+
+    const handleTourBack = useCallback(() => {
+        if (tourTimerRef.current) clearTimeout(tourTimerRef.current);
+        const prev = Math.max(0, tourStep - 1);
+        setTourStep(prev);
+        setIsUserExploring(false);
+        setIsTourPaused(false);
+        fireTourStep(prev);
+    }, [tourStep, fireTourStep]);
+
+    const handleTourPause = useCallback(() => {
+        if (tourTimerRef.current) clearTimeout(tourTimerRef.current);
+        setIsTourPaused(true);
+    }, []);
+
+    const handleTourResume = useCallback(() => {
+        setIsUserExploring(false);
+        setIsTourPaused(false);
+        // Re-fire current step so camera snaps back to where tour was
+        fireTourStep(tourStep);
+    }, [tourStep, fireTourStep]);
+
+    const handleTourReplay = useCallback(() => {
+        setIsTourComplete(false);
+        setTourStep(0);
+        setIsTourPaused(false);
+        setIsUserExploring(false);
+        fireTourStep(0);
+    }, [fireTourStep]);
+
+    // Auto-advance: fires when step timer expires
+    useEffect(() => {
+        if (!isTourActive || isTourPaused || isUserExploring || isTourComplete) {
+            if (tourTimerRef.current) clearTimeout(tourTimerRef.current);
+            return;
+        }
+        const step = TOUR_STEPS[tourStep];
+        tourTimerRef.current = setTimeout(() => {
+            if (tourStep < TOUR_STEPS.length - 1) {
+                const next = tourStep + 1;
+                setTourStep(next);
+                fireTourStep(next);
+            } else {
+                setIsTourComplete(true);
+            }
+        }, step.duration);
+        return () => { if (tourTimerRef.current) clearTimeout(tourTimerRef.current); };
+    }, [isTourActive, isTourPaused, isUserExploring, isTourComplete, tourStep, fireTourStep]);
+
+    /**
+     * Wraps the BrainMap onSelect prop.
+     * If the user manually clicks a node while the tour is playing (not a
+     * programmatic jump), pause the tour and enter "exploring" mode.
+     */
+    const handleBrainMapSelect = useCallback((node: (OrbitNodeData | ChildNodeData & { id: string }) | null) => {
+        setSelected(node as SelectedNode | null);
+        if (isTourActiveRef.current && !tourJumpingRef.current && !isTourCompleteRef.current) {
+            if (tourTimerRef.current) clearTimeout(tourTimerRef.current);
+            setIsUserExploring(true);
+            setIsTourPaused(true);
+        }
     }, []);
 
     return (
@@ -131,12 +261,13 @@ function App() {
                                 {/* Brain map — fills remaining space */}
                                 <div className="flex-1 relative" style={{ minWidth: 0 }}>
                                     <BrainMap
-                                        onSelect={node => setSelected(node)}
+                                        onSelect={handleBrainMapSelect}
                                         selectedId={selected?.id ?? null}
                                         jumpTo={jumpTo}
                                         onJumpDone={() => setJumpTo(null)}
                                         paletteOpen={palette}
                                         contracting={spherePhase === 'transitioning'}
+                                        tourActive={isTourActive && !isUserExploring}
                                     />
                                 </div>
 
@@ -197,6 +328,22 @@ function App() {
                                 >
                                     <span style={{ color: '#3DE3FF', fontSize: 11 }}>◉</span> Brain Sphere
                                 </button>
+
+                                {/* Guided tour trigger */}
+                                {!isTourActive && (
+                                    <button
+                                        onClick={startTour}
+                                        className="fixed top-[7.8rem] left-4 z-50 flex items-center gap-1.5 font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full transition-colors hover:text-accent"
+                                        style={{
+                                            background: 'rgba(11,18,32,0.85)',
+                                            border: '1px solid rgba(61,227,255,0.22)',
+                                            backdropFilter: 'blur(10px)',
+                                            color: 'rgba(154,176,204,0.7)',
+                                        }}
+                                    >
+                                        <span style={{ color: '#3DE3FF', fontSize: 11 }}>▷</span> Take a 60-second tour
+                                    </button>
+                                )}
                             </>
                         )}
                     </motion.div>
@@ -277,6 +424,26 @@ function App() {
                     <Suspense fallback={null}>
                         <GestureDemo onClose={() => setGestureDemo(false)} />
                     </Suspense>
+                )}
+            </AnimatePresence>
+
+            {/* Guided tour panel */}
+            <AnimatePresence>
+                {isTourActive && (
+                    <GuidedTour
+                        key="guided-tour"
+                        step={tourStep}
+                        stepData={TOUR_STEPS[tourStep]}
+                        isPaused={isTourPaused}
+                        isUserExploring={isUserExploring}
+                        isComplete={isTourComplete}
+                        onNext={handleTourNext}
+                        onBack={handleTourBack}
+                        onPause={handleTourPause}
+                        onResume={handleTourResume}
+                        onExit={exitTour}
+                        onReplay={handleTourReplay}
+                    />
                 )}
             </AnimatePresence>
 

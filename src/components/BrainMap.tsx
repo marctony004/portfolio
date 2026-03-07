@@ -43,9 +43,10 @@ interface Props {
     onJumpDone?: () => void;
     paletteOpen?: boolean;
     contracting?: boolean; // true during the BrainSphere morph transition
+    tourActive?: boolean;  // true while guided tour controls navigation
 }
 
-export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen, contracting = false }: Props) => {
+export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen, contracting = false, tourActive = false }: Props) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [dims, setDims]       = useState({ w: 800, h: 600 });
     const [hovered, setHovered] = useState<string | null>(null);
@@ -292,6 +293,7 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
     };
 
     const handleBgClick = () => {
+        if (tourActive) return; // tour controls navigation; ignore bg clicks
         onSelect(null);
         setCamera({ x: 0, y: 0, scale: 1 });
         setExpanded(false);
