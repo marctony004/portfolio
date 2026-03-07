@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Globe } from 'lucide-react';
-import { SphereScene, type CamState } from './SphereScene';
+import { SphereScene, type CamState, type IdlePulseData } from './SphereScene';
 import { SphereInspector } from './SphereInspector';
 import { GestureLayer } from './GestureLayer';
 import { FocusMode } from './FocusMode';
@@ -37,9 +37,79 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
     const [selectedId,  setSelectedId]  = useState<string | null>(null);
     const [expandedId,  setExpandedId]  = useState<string | null>(null);
     const [focusModeId, setFocusModeId] = useState<string | null>(null);
-    const [waveActive,  setWaveActive]  = useState(false);
-    const waveTimeRef = useRef<number>(0);
-    const waveRanRef  = useRef(false);
+    const [waveActive,       setWaveActive]       = useState(false);
+    const [depthVeilVisible, setDepthVeilVisible] = useState(false);
+    const [isIdle,           setIsIdle]           = useState(false);
+    const [idlePulse,        setIdlePulse]        = useState<IdlePulseData | null>(null);
+    const [idleGlowTimes,    setIdleGlowTimes]    = useState<Map<string, number>>(new Map());
+    const waveTimeRef       = useRef<number>(0);
+    const waveRanRef        = useRef(false);
+    const idleDetectRef     = useRef<ReturnType<typeof setTimeout> | null>(null); // idle detection only
+    const pulseTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null); // pulse scheduling only
+    const lastPulseEdgeRef  = useRef<string | null>(null);
+    const lastSelectedIdRef = useRef<string | null>(null);
+
+    // Resets the idle countdown — call on any user interaction
+    const resetIdleTimer = useCallback(() => {
+        setIsIdle(false);
+        if (idleDetectRef.current) clearTimeout(idleDetectRef.current);
+        idleDetectRef.current = setTimeout(() => setIsIdle(true), 6000 + Math.random() * 2000);
+    }, []);
+
+    // Fire one idle pulse along a random edge (context-aware if a node was recently visited)
+    const fireIdlePulse = useCallback(() => {
+        const topLevel = sphereNodes.filter(n => !n.parentId);
+        const nodeMap  = new Map(topLevel.map(n => [n.id, n.position]));
+        let candidates = sphereEdges.filter(e =>
+            nodeMap.has(e.source) &&
+            nodeMap.has(e.target) &&
+            `${e.source}|${e.target}` !== lastPulseEdgeRef.current,
+        );
+        if (candidates.length === 0) {
+            candidates = sphereEdges.filter(e => nodeMap.has(e.source) && nodeMap.has(e.target));
+        }
+        if (candidates.length === 0) return;
+
+        // Context-aware: edges near the last selected node get 3× weight
+        const lastNode   = lastSelectedIdRef.current ? sphereNodes.find(n => n.id === lastSelectedIdRef.current) : null;
+        const relatedIds = new Set(lastNode?.relatedIds ?? []);
+        const pool: typeof candidates = [];
+        for (const e of candidates) {
+            pool.push(e);
+            if (relatedIds.has(e.source) || relatedIds.has(e.target)) pool.push(e, e);
+        }
+
+        const edge = pool[Math.floor(Math.random() * pool.length)];
+        const from = nodeMap.get(edge.source)!;
+        const to   = nodeMap.get(edge.target)!;
+        const dur  = 400 + Math.random() * 300;
+        const now  = performance.now();
+        lastPulseEdgeRef.current = `${edge.source}|${edge.target}`;
+        setIdlePulse({ from, to, startTime: now, duration: dur, key: String(now) });
+        setIdleGlowTimes(new Map([[edge.source, now], [edge.target, now]]));
+    }, []);
+
+    // Start idle detection on mount; clean up on unmount
+    useEffect(() => {
+        resetIdleTimer();
+        return () => {
+            if (idleDetectRef.current) clearTimeout(idleDetectRef.current);
+            if (pulseTimerRef.current) clearTimeout(pulseTimerRef.current);
+        };
+    }, [resetIdleTimer]);
+
+    // Pulse chain — starts when isIdle flips true, stops and clears when it flips false
+    useEffect(() => {
+        if (!isIdle || PREFERS_REDUCED) {
+            if (pulseTimerRef.current) clearTimeout(pulseTimerRef.current);
+            return;
+        }
+        const scheduleNext = () => {
+            pulseTimerRef.current = setTimeout(() => { fireIdlePulse(); scheduleNext(); }, 8000 + Math.random() * 7000);
+        };
+        pulseTimerRef.current = setTimeout(() => { fireIdlePulse(); scheduleNext(); }, 2000 + Math.random() * 2000);
+        return () => { if (pulseTimerRef.current) clearTimeout(pulseTimerRef.current); };
+    }, [isIdle, fireIdlePulse]);
 
     // Snapshot of constellation state saved before entering Focus Mode so we can restore it on exit
     const savedConstellationRef = useRef<{ expandedId: string | null; selectedId: string | null }>({
@@ -54,17 +124,34 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
     const isDraggingRef    = useRef(false);
     const lastPtrRef       = useRef({ x: 0, y: 0 });
 
-    // Neural activation wave — fires once when sphere is fully revealed
+    // Neural activation wave + breath pulse — fire once when sphere is fully revealed
     useEffect(() => {
         if (!runWave || waveRanRef.current || PREFERS_REDUCED) return;
         waveRanRef.current = true;
-        const t1 = setTimeout(() => {
+
+        const timers: ReturnType<typeof setTimeout>[] = [];
+        const later = (fn: () => void, ms: number) => {
+            const t = setTimeout(fn, ms);
+            timers.push(t);
+        };
+
+        // Wave activation + depth veil settle
+        later(() => {
             waveTimeRef.current = performance.now();
             setWaveActive(true);
-            const t2 = setTimeout(() => setWaveActive(false), 2200);
-            return () => clearTimeout(t2);
+            setDepthVeilVisible(true);
         }, 350);
-        return () => clearTimeout(t1);
+
+        // Wave ends
+        later(() => setWaveActive(false), 350 + 2200);
+
+        // Breath expand — sphere inhales very slightly (~1.06×)
+        later(() => { camRef.current.targetDistance = INITIAL_CAM.distance - 0.38; }, 350 + 2200 + 220);
+
+        // Breath return — settles back to resting distance
+        later(() => { camRef.current.targetDistance = INITIAL_CAM.distance; }, 350 + 2200 + 220 + 540);
+
+        return () => timers.forEach(clearTimeout);
     }, [runWave]);
 
     const selectedNode = sphereNodes.find(n => n.id === selectedId) ?? null;
@@ -101,6 +188,8 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
     const handleSelect = useCallback((id: string) => {
         const node = sphereNodes.find(n => n.id === id);
         if (!node) return;
+        resetIdleTimer();
+        lastSelectedIdRef.current = id;
 
         if (EXPANDABLE_IDS.has(id)) {
             // Expandable parent node
@@ -122,7 +211,7 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
             setSelectedId(id);
             focusOnNode(id);
         }
-    }, [expandedId, focusOnNode]);
+    }, [expandedId, focusOnNode, resetIdleTimer]);
 
     const handleGestureSelect = useCallback((id: string) => {
         handleSelect(id);
@@ -141,9 +230,10 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
         isDraggingRef.current = true;
         hasDraggedRef.current = false;
         lastPtrRef.current    = { x: e.clientX, y: e.clientY };
+        resetIdleTimer();
         // Do NOT setPointerCapture here — it would redirect pointerup away from
         // the R3F canvas and break mesh onClick handlers. Capture only on real drag.
-    }, []);
+    }, [resetIdleTimer]);
 
     const onPointerMove = useCallback((e: React.PointerEvent) => {
         if (!isDraggingRef.current) return;
@@ -152,6 +242,7 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
         lastPtrRef.current = { x: e.clientX, y: e.clientY };
         if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
             hasDraggedRef.current = true;
+            resetIdleTimer();
             // Capture only after confirmed drag so pointerup stays on the canvas
             // for plain clicks, keeping R3F mesh onClick working.
             const el = e.currentTarget as HTMLElement;
@@ -160,7 +251,7 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
         const c = camRef.current;
         c.targetTheta -= dx * 0.005;
         c.targetPhi    = clamp(c.targetPhi - dy * 0.005, 0.2, Math.PI - 0.2);
-    }, []);
+    }, [resetIdleTimer]);
 
     const onPointerUp = useCallback(() => {
         isDraggingRef.current = false;
@@ -179,7 +270,8 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
         setExpandedId(null);  // collapse constellation — hides sibling project nodes
         setSelectedId(null);  // close inspector panel
         setFocusModeId(nodeId);
-    }, [expandedId, selectedId]);
+        resetIdleTimer();
+    }, [expandedId, selectedId, resetIdleTimer]);
 
     // Exiting: trigger the Focus Mode exit animation, then restore the constellation
     // after the animation fully completes (matches FocusMode transition duration: 0.55s).
@@ -298,8 +390,24 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
                         waveTimeRef={waveTimeRef}
                         waveActive={waveActive}
                         waveDelays={WAVE_DELAYS}
+                        idlePulse={idlePulse}
+                        idleGlowTimes={idleGlowTimes}
+                        onIdlePulseComplete={() => setIdlePulse(null)}
                     />
                 </Canvas>
+
+                {/* Spatial depth veil — radial vignette that settles as the sphere stabilizes.
+                    Softens the far periphery and helps the sphere read as floating in depth. */}
+                <motion.div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        zIndex: 5,
+                        background: 'radial-gradient(ellipse 80% 75% at 50% 52%, transparent 36%, rgba(7,13,26,0.28) 100%)',
+                    }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: depthVeilVisible ? 1 : 0 }}
+                    transition={{ duration: 2.4, ease: [0.25, 0.46, 0.45, 0.94], delay: 0.3 }}
+                />
 
                 {/* Gesture overlay */}
                 <GestureLayer

@@ -185,7 +185,7 @@ function App() {
                                         const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
                                         if (reduced) { setSpherePhase('on'); return; }
                                         setSpherePhase('transitioning');
-                                        sphereTimerRef.current = setTimeout(() => setSpherePhase('on'), 2500);
+                                        sphereTimerRef.current = setTimeout(() => setSpherePhase('on'), 3000);
                                     }}
                                     className="fixed top-[5.4rem] left-4 z-50 flex items-center gap-1.5 font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full transition-colors hover:text-accent"
                                     style={{

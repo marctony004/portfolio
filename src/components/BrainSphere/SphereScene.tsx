@@ -1,8 +1,84 @@
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { SphereNode } from './SphereNode';
+import { SphereEdges, type ActiveEdge } from './SphereEdges';
+import type { SphereNodeData, SphereEdgeData } from '../../data/sphereGraph';
 
 const WAVE_TRAVEL_MS = 420;
+
+// BFS shortest path between two nodes (undirected graph)
+function findPath(fromId: string, toId: string, edges: SphereEdgeData[]): string[] | null {
+    if (fromId === toId) return null;
+    const adj = new Map<string, string[]>();
+    for (const e of edges) {
+        if (!adj.has(e.source)) adj.set(e.source, []);
+        if (!adj.has(e.target)) adj.set(e.target, []);
+        adj.get(e.source)!.push(e.target);
+        adj.get(e.target)!.push(e.source);
+    }
+    const visited = new Set([fromId]);
+    const queue: string[][] = [[fromId]];
+    while (queue.length > 0) {
+        const path = queue.shift()!;
+        for (const nb of adj.get(path[path.length - 1]) ?? []) {
+            if (!visited.has(nb)) {
+                const next = [...path, nb];
+                if (nb === toId) return next;
+                visited.add(nb);
+                queue.push(next);
+            }
+        }
+    }
+    return null;
+}
+
+// Faint traveling orb for background neural activity
+function IdleNeuralPulse({ from, to, startTime, duration, onComplete }: {
+    from:       [number, number, number];
+    to:         [number, number, number];
+    startTime:  number;
+    duration:   number;
+    onComplete: () => void;
+}) {
+    const meshRef = useRef<THREE.Mesh>(null);
+    const matRef  = useRef<THREE.MeshBasicMaterial>(null);
+    const doneRef = useRef(false);
+
+    useFrame(() => {
+        if (!meshRef.current || !matRef.current || doneRef.current) return;
+        const elapsed = performance.now() - startTime;
+        if (elapsed >= duration) {
+            matRef.current.opacity = 0;
+            doneRef.current = true;
+            onComplete();
+            return;
+        }
+        const t    = elapsed / duration;
+        const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        meshRef.current.position.set(
+            from[0] + (to[0] - from[0]) * ease,
+            from[1] + (to[1] - from[1]) * ease,
+            from[2] + (to[2] - from[2]) * ease,
+        );
+        matRef.current.opacity = Math.sin(t * Math.PI) * 0.14;
+    });
+
+    return (
+        <mesh ref={meshRef}>
+            <sphereGeometry args={[0.012, 6, 6]} />
+            <meshBasicMaterial ref={matRef} color="#3DE3FF" transparent opacity={0} depthWrite={false} />
+        </mesh>
+    );
+}
+
+export interface IdlePulseData {
+    from:      [number, number, number];
+    to:        [number, number, number];
+    startTime: number;
+    duration:  number;
+    key:       string;
+}
 
 function WaveEdgePulse({
     from, to, startDelay, waveTimeRef,
@@ -35,9 +111,6 @@ function WaveEdgePulse({
         </mesh>
     );
 }
-import { SphereNode } from './SphereNode';
-import { SphereEdges } from './SphereEdges';
-import type { SphereNodeData, SphereEdgeData } from '../../data/sphereGraph';
 
 const PREFERS_REDUCED = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -109,9 +182,12 @@ interface Props {
     focusedNodeIdRef:  React.MutableRefObject<string | null>;
     hasDraggedRef:     React.MutableRefObject<boolean>;
     idleRotate:        boolean;
-    waveTimeRef?:      React.MutableRefObject<number>;
-    waveActive?:       boolean;
-    waveDelays?:       Map<string, number>;
+    waveTimeRef?:          React.MutableRefObject<number>;
+    waveActive?:           boolean;
+    waveDelays?:           Map<string, number>;
+    idlePulse?:            IdlePulseData | null;
+    idleGlowTimes?:        Map<string, number>;
+    onIdlePulseComplete?:  () => void;
 }
 
 // Reusable vector (avoids GC pressure in useFrame)
@@ -136,7 +212,7 @@ function mulberry32(seed: number) {
     return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 }
 
-export function SphereScene({ nodes, edges, selectedId, expandedId, onSelect, camRef, focusedNodeIdRef, hasDraggedRef, idleRotate, waveTimeRef, waveActive, waveDelays }: Props) {
+export function SphereScene({ nodes, edges, selectedId, expandedId, onSelect, camRef, focusedNodeIdRef, hasDraggedRef, idleRotate, waveTimeRef, waveActive, waveDelays, idlePulse, idleGlowTimes, onIdlePulseComplete }: Props) {
     const frameRef = useRef(0);
 
     // Visible nodes: top-level only, plus constellation children when a parent is expanded.
@@ -156,6 +232,35 @@ export function SphereScene({ nodes, edges, selectedId, expandedId, onSelect, ca
             ...children.map((child, i) => ({ ...child, position: cPositions[i] })),
         ];
     }, [nodes, expandedId]);
+
+    // Position lookup for visible nodes — used by activePath
+    const visiblePosMap = useMemo(() => {
+        const m = new Map<string, [number, number, number]>();
+        visibleNodes.forEach(n => m.set(n.id, n.position));
+        return m;
+    }, [visibleNodes]);
+
+    // BFS path from center → selectedId; drives EdgeBuzz overlays and path node glow
+    const { activePath, activePathNodeIds } = useMemo(() => {
+        const empty = { activePath: { keys: new Set<string>(), edges: [] as ActiveEdge[] }, activePathNodeIds: new Set<string>() };
+        if (!selectedId || selectedId === 'marc-smith') return empty;
+        const path = findPath('marc-smith', selectedId, edges);
+        if (!path || path.length < 2) return empty;
+        const numEdges = path.length - 1;
+        const keys     = new Set<string>();
+        const edgeList: ActiveEdge[] = [];
+        const nodeIds  = new Set(path);
+        for (let i = 0; i < numEdges; i++) {
+            const fromPos = visiblePosMap.get(path[i]);
+            const toPos   = visiblePosMap.get(path[i + 1]);
+            keys.add(`${path[i]}|${path[i + 1]}`);
+            keys.add(`${path[i + 1]}|${path[i]}`);
+            if (fromPos && toPos) {
+                edgeList.push({ src: fromPos, tgt: toPos, key: `buzz-${path[i]}-${path[i + 1]}` });
+            }
+        }
+        return { activePath: { keys, edges: edgeList }, activePathNodeIds: nodeIds };
+    }, [selectedId, edges, visiblePosMap]);
 
     useFrame(({ camera }) => {
         const s = camRef.current;
@@ -196,6 +301,14 @@ export function SphereScene({ nodes, edges, selectedId, expandedId, onSelect, ca
 
     return (
         <>
+            {/* Atmospheric depth field — camera is inside this sphere (dist 6.5 < radius 9).
+                BackSide renders the inner face, creating a dark atmospheric shell behind the
+                nodes but in front of the far star field. Dims distant elements for spatial depth. */}
+            <mesh>
+                <sphereGeometry args={[9, 12, 12]} />
+                <meshBasicMaterial color="#070d1a" transparent opacity={0.26} side={THREE.BackSide} depthWrite={false} />
+            </mesh>
+
             {/* Lighting — soft and cinematic */}
             <ambientLight intensity={0.16} color="#9AB0CC" />
             <pointLight position={[3, 5, 4]}    intensity={0.32} color="#E6EEF9" distance={20} decay={2} />
@@ -211,7 +324,7 @@ export function SphereScene({ nodes, edges, selectedId, expandedId, onSelect, ca
             <GlobeShell active={!!selectedId} />
 
             {/* Edges — nodeMap built from visibleNodes so hidden children auto-drop */}
-            <SphereEdges nodes={visibleNodes} edges={edges} selectedId={selectedId} />
+            <SphereEdges nodes={visibleNodes} edges={edges} selectedId={selectedId} activePathKeys={activePath.keys} activeEdges={activePath.edges} />
 
             {/* Nodes */}
             {(() => {
@@ -226,7 +339,8 @@ export function SphereScene({ nodes, edges, selectedId, expandedId, onSelect, ca
                         && selectedId !== node.id
                         && node.nodeType !== 'center'            // center is never dimmed
                         && !node.relatedIds.includes(selectedId)  // directly related → keep bright
-                        && !(selParentId && node.parentId === selParentId); // constellation siblings stay bright
+                        && !(selParentId && node.parentId === selParentId) // constellation siblings stay bright
+                        && !activePathNodeIds.has(node.id);      // path nodes stay lit like the wire
 
                     return (
                         <SphereNode
@@ -239,10 +353,24 @@ export function SphereScene({ nodes, edges, selectedId, expandedId, onSelect, ca
                             hasDraggedRef={hasDraggedRef}
                             waveDelay={waveDelays?.get(node.id) ?? null}
                             waveTimeRef={waveTimeRef}
+                            isOnActivePath={activePathNodeIds.has(node.id)}
+                            idleGlowAt={idleGlowTimes?.get(node.id) ?? null}
                         />
                     );
                 });
             })()}
+
+            {/* Idle neural pulse — single faint orb traveling a random edge, all state managed outside Canvas */}
+            {idlePulse && (
+                <IdleNeuralPulse
+                    key={idlePulse.key}
+                    from={idlePulse.from}
+                    to={idlePulse.to}
+                    startTime={idlePulse.startTime}
+                    duration={idlePulse.duration}
+                    onComplete={onIdlePulseComplete ?? (() => {})}
+                />
+            )}
 
             {/* Wave edge pulses — one orb per primary spoke, travels from center outward */}
             {waveActive && waveTimeRef && waveDelays && visibleNodes

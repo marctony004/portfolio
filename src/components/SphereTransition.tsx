@@ -4,14 +4,14 @@ import { ORBIT_ANGLES } from './brainMapConstants';
 
 // ── Timing ─────────────────────────────────────────────────────────────────────
 const EASE: [number, number, number, number] = [0.25, 0.46, 0.45, 0.94];
-const DUR = 2.8; // seconds — increased for a more deliberate, cinematic morph
+const DUR = 3.2; // seconds — deliberate, cinematic pacing
 
 // Keyframe time anchors (fractions of DUR):
-const T_CONTRACT  = 0.38; // nodes fully converge at center
-const T_SPHERE    = 0.72; // nodes reach sphere positions
-const T_FLASH     = 0.77; // per-node arrival flash peak
-const T_SETTLE    = 0.84; // node settled at sphere position
-const T_PULSE_END = 0.95; // stabilization glow fades
+const T_CONTRACT  = 0.35; // nodes fully converge at center
+const T_SPHERE    = 0.70; // nodes reach sphere positions
+const T_FLASH     = 0.74; // per-node arrival flash peak
+const T_SETTLE    = 0.81; // node settled at sphere position
+const T_PULSE_END = 0.93; // stabilization glow fades
 
 // ── Sphere target positions ────────────────────────────────────────────────────
 // Approximate 2D screen-space projections of the Brain Sphere's orbit nodes
@@ -89,8 +89,8 @@ export function SphereTransition() {
     //   Phase 2 (expand):   arc from center → sphere pos, curving clockwise
     // Result: 14 keyframe values per animated property (aligned times array).
     const orbitArcs = useMemo(() => {
-        const C1 = orbitR  * 0.44;  // contraction arc curvature
-        const C2 = sphereR * 0.42;  // expansion arc curvature (slightly larger for drama)
+        const C1 = orbitR  * 0.54;  // deeper arc during gravitational collapse
+        const C2 = sphereR * 0.48;  // wider arc during sphere expansion
 
         return startPos.map(([sx, sy], i) => {
             const [tx, ty] = targetPos[i];
@@ -118,28 +118,32 @@ export function SphereTransition() {
             const xs: number[] = [...combined.map(p => p[0]), tx, tx, tx];
             const ys: number[] = [...combined.map(p => p[1]), ty, ty, ty];
 
-            // Time distribution: linear spacing within each phase
-            // phase1 → 0..T_CONTRACT (6 pts), phase2 → T_CONTRACT..T_SPHERE (5 pts)
-            const p1Times = Array.from({ length: 6 }, (_, k) => (k / 5) * T_CONTRACT);
+            // Gravity-biased Phase 1 times: nodes linger near orbit radius, then
+            // accelerate into center (ease-in). Power < 1 bunches keyframes toward end.
+            const p1Times = Array.from({ length: 6 }, (_, k) =>
+                k === 0 ? 0 : Math.pow(k / 5, 0.55) * T_CONTRACT,
+            );
+            // Ease-out Phase 2 times: fast departure from center, settling at sphere pos.
             const p2Times = Array.from({ length: 5 }, (_, k) =>
-                T_CONTRACT + ((k + 1) / 5) * (T_SPHERE - T_CONTRACT),
+                T_CONTRACT + Math.pow((k + 1) / 5, 0.72) * (T_SPHERE - T_CONTRACT),
             );
             const times = [...p1Times, ...p2Times, T_FLASH, T_SETTLE, 1.0];
 
-            // Scale: shrink to 0.20 at center, grow back, flash on arrival, then fade
-            const scaleP1 = Array.from({ length: 6 }, (_, k) => 1.00 - k * 0.16);       // 1.0→0.20
-            const scaleP2 = Array.from({ length: 5 }, (_, k) => 0.36 + k * 0.16);       // 0.36→1.0
-            const scaleKf = [...scaleP1, ...scaleP2, 1.24, 1.00, 0];
+            // Scale: shrink further toward center (more dramatic collapse), grow back,
+            // flash on arrival, then fade
+            const scaleP1 = Array.from({ length: 6 }, (_, k) => 1.00 - k * 0.17); // 1.0→0.15
+            const scaleP2 = Array.from({ length: 5 }, (_, k) => 0.30 + k * 0.18); // 0.30→1.02
+            const scaleKf = [...scaleP1, ...scaleP2, 1.22, 1.00, 0];
 
-            // Opacity: slight dip during contraction, bright at arrival, fade out
-            const opP1 = [0.85, 0.80, 0.80, 0.85, 0.90, 0.95];
-            const opP2 = [0.95, 0.98, 1.00, 1.00, 1.00];
-            const opacityKf = [...opP1, ...opP2, 1.00, 0.85, 0];
+            // Opacity: hold strong during contraction, bright at arrival, fade out
+            const opP1 = [0.90, 0.88, 0.86, 0.88, 0.92, 0.96];
+            const opP2 = [0.96, 0.98, 1.00, 1.00, 1.00];
+            const opacityKf = [...opP1, ...opP2, 1.00, 0.80, 0];
 
             // Verify: all arrays must be length 14
             // times: 6+5+3=14  xs/ys: 11+3=14  scaleKf: 6+5+3=14  opacityKf: same ✓
 
-            return { xs, ys, times, scaleKf, opacityKf, delay: i * 0.042 };
+            return { xs, ys, times, scaleKf, opacityKf, delay: i * 0.055 };
         });
     }, [startPos, targetPos, orbitR, sphereR]);
 
@@ -168,8 +172,8 @@ export function SphereTransition() {
             {/* ── Sphere wireframe ────────────────────────────────────────────── */}
             {([
                 { w: sphereR * 1.90, h: sphereR * 1.90, rot: 0,  delay: 0.00 },
-                { w: sphereR * 1.90, h: sphereR * 0.70, rot: 0,  delay: 0.07 },
-                { w: sphereR * 0.70, h: sphereR * 1.90, rot: 18, delay: 0.14 },
+                { w: sphereR * 1.90, h: sphereR * 0.70, rot: 0,  delay: 0.08 },
+                { w: sphereR * 0.70, h: sphereR * 1.90, rot: 18, delay: 0.16 },
             ] as const).map((e, i) => (
                 <motion.div
                     key={`wire-${i}`}
@@ -178,38 +182,41 @@ export function SphereTransition() {
                         width:  e.w, height: e.h,
                         left:   cx - e.w / 2,
                         top:    cy - e.h / 2,
-                        border: '1px solid rgba(61,227,255,0.20)',
+                        border: '1px solid rgba(61,227,255,0.18)',
                         rotate: e.rot,
                     }}
                     animate={{
-                        opacity: [0, 0, 0, 0.70, 0.40, 0],
-                        scale:   [0.1, 0.1, 0.1, 1, 1.02, 0.95],
+                        // Inflate from a tight cluster as nodes converge (T_CONTRACT),
+                        // reach full radius as nodes settle at sphere positions (T_SPHERE),
+                        // then softly fade as BrainSphere takes over.
+                        opacity: [0, 0, 0,    0.55, 0.72, 0.38, 0],
+                        scale:   [0, 0, 0.08, 0.42, 1.00, 1.04, 0.96],
                     }}
                     transition={{
                         duration: DUR,
-                        times:    [0, 0.24, 0.44, 0.64, 0.83, 1.0],
+                        times:    [0, T_CONTRACT * 0.7, T_CONTRACT, T_CONTRACT + 0.12, T_SPHERE, T_SETTLE, 1.0],
                         ease:     EASE,
                         delay:    e.delay,
                     }}
                 />
             ))}
 
-            {/* ── Center glow burst (fires as nodes converge) ─────────────────── */}
+            {/* ── Center singularity — concentrates as nodes arrive, then releases ── */}
             <motion.div
                 className="absolute rounded-full pointer-events-none"
                 style={{
-                    background: 'radial-gradient(circle, rgba(61,227,255,0.50) 0%, rgba(61,227,255,0.10) 45%, transparent 100%)',
+                    background: 'radial-gradient(circle, rgba(61,227,255,0.70) 0%, rgba(61,227,255,0.18) 35%, rgba(61,227,255,0.04) 65%, transparent 100%)',
                 }}
                 animate={{
-                    width:   [0, 0, sphereR * 0.8, sphereR * 2.8, sphereR * 1.4, 0],
-                    height:  [0, 0, sphereR * 0.8, sphereR * 2.8, sphereR * 1.4, 0],
-                    left:    [cx, cx, cx - sphereR * 0.40, cx - sphereR * 1.40, cx - sphereR * 0.70, cx],
-                    top:     [cy, cy, cy - sphereR * 0.40, cy - sphereR * 1.40, cy - sphereR * 0.70, cy],
-                    opacity: [0,  0,  0.80,                0.40,                 0.18,                0],
+                    width:   [0, 0, sphereR * 0.5, sphereR * 0.9, sphereR * 2.6, sphereR * 1.2, 0],
+                    height:  [0, 0, sphereR * 0.5, sphereR * 0.9, sphereR * 2.6, sphereR * 1.2, 0],
+                    left:    [cx, cx, cx - sphereR * 0.25, cx - sphereR * 0.45, cx - sphereR * 1.30, cx - sphereR * 0.60, cx],
+                    top:     [cy, cy, cy - sphereR * 0.25, cy - sphereR * 0.45, cy - sphereR * 1.30, cy - sphereR * 0.60, cy],
+                    opacity: [0,  0,  0.50,                0.85,                0.32,                0.14,                0],
                 }}
                 transition={{
                     duration: DUR,
-                    times:    [0, 0.28, 0.38, 0.56, 0.73, 1.0],
+                    times:    [0, T_CONTRACT * 0.6, T_CONTRACT * 0.88, T_CONTRACT, 0.54, 0.74, 1.0],
                     ease:     EASE,
                 }}
             />
@@ -230,25 +237,47 @@ export function SphereTransition() {
                         border: `1px solid rgba(61,227,255,${cfg.opacity1})`,
                     }}
                     animate={{
-                        scale:   [0, 0, 0,    0.50, 0.90, 1.45, 1.70],
-                        opacity: [0, 0, 0,    cfg.opacity2, 0.28, 0.12, 0],
+                        scale:   [0, 0, 0,       0.45, 0.88, 1.40, 1.65],
+                        opacity: [0, 0, 0,       cfg.opacity2, 0.25, 0.10, 0],
                     }}
                     transition={{
                         duration: DUR,
-                        times:    [0, 0.60, 0.70, 0.74, 0.80, T_PULSE_END, 1.0],
+                        times:    [0, T_SPHERE - 0.06, T_SPHERE, T_FLASH, T_SETTLE, T_PULSE_END, 1.0],
                         ease:     EASE,
                         delay:    cfg.delay,
                     }}
                 />
             ))}
 
-            {/* ── SVG: spoke lines from center to sphere positions ─────────────── */}
+            {/* ── SVG: tether lines + spoke lines ─────────────────────────────── */}
             <svg
                 className="absolute inset-0 pointer-events-none"
                 width="100%"
                 height="100%"
                 style={{ overflow: 'visible' }}
             >
+                {/* Gravitational tethers — orbit start positions fade as nodes collapse */}
+                {startPos.map(([sx, sy], i) => (
+                    <motion.line
+                        key={`tether-${i}`}
+                        x1={cx} y1={cy}
+                        x2={cx + sx} y2={cy + sy}
+                        stroke="#3DE3FF"
+                        strokeLinecap="round"
+                        animate={{
+                            opacity:     [0, 0.32, 0.22, 0.10, 0],
+                            strokeWidth: [0.8, 0.8, 0.50, 0.20, 0],
+                        }}
+                        transition={{
+                            duration: DUR * T_CONTRACT * 1.1,
+                            times:    [0, 0.06, 0.45, 0.78, 1.0],
+                            ease:     'easeIn',
+                            delay:    i * 0.05,
+                        }}
+                    />
+                ))}
+
+                {/* Spoke lines — appear as nodes settle at sphere positions */}
                 {targetPos.map(([tx, ty], i) => (
                     <motion.line
                         key={`spoke-${i}`}
@@ -256,10 +285,10 @@ export function SphereTransition() {
                         x2={cx + tx} y2={cy + ty}
                         stroke="#3DE3FF"
                         strokeWidth="0.6"
-                        animate={{ opacity: [0, 0, 0, 0.26, 0.14, 0] }}
+                        animate={{ opacity: [0, 0, 0, 0.24, 0.12, 0] }}
                         transition={{
                             duration: DUR,
-                            times:    [0, 0.30, 0.50, 0.64, 0.80, 1.0],
+                            times:    [0, 0.32, 0.52, 0.66, 0.82, 1.0],
                             ease:     EASE,
                             delay:    i * 0.035,
                         }}
