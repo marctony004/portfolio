@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BootSequence } from './components/BootSequence';
 import { Intro } from './components/Intro';
@@ -10,6 +10,8 @@ import { MobileLanding } from './components/MobileLanding';
 import { ShortcutHelp } from './components/ShortcutHelp';
 import { PortfolioAssistant } from './components/PortfolioAssistant';
 import type { OrbitNodeData, ChildNodeData } from './data/brainData';
+
+import { SphereTransition } from './components/SphereTransition';
 
 const GestureDemo  = lazy(() => import('./components/GestureDemo'));
 const BrainSphere  = lazy(() => import('./components/BrainSphere'));
@@ -27,8 +29,9 @@ function App() {
     const [mobileViewMap,   setMobileViewMap]   = useState(false);
     const [recruiterMode,   setRecruiterMode]   = useState(false);
     const [gestureDemo,   setGestureDemo]   = useState(false);
-    const [brainSphere,   setBrainSphere]   = useState(false);
+    const [spherePhase,   setSpherePhase]   = useState<'off' | 'transitioning' | 'on'>('off');
     const [helpOpen,      setHelpOpen]      = useState(false);
+    const sphereTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Responsive check
     useEffect(() => {
@@ -133,6 +136,7 @@ function App() {
                                         jumpTo={jumpTo}
                                         onJumpDone={() => setJumpTo(null)}
                                         paletteOpen={palette}
+                                        contracting={spherePhase === 'transitioning'}
                                     />
                                 </div>
 
@@ -175,7 +179,14 @@ function App() {
 
                                 {/* Brain Sphere trigger */}
                                 <button
-                                    onClick={() => setBrainSphere(true)}
+                                    onClick={() => {
+                                        if (spherePhase !== 'off') return;
+                                        if (sphereTimerRef.current) clearTimeout(sphereTimerRef.current);
+                                        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                                        if (reduced) { setSpherePhase('on'); return; }
+                                        setSpherePhase('transitioning');
+                                        sphereTimerRef.current = setTimeout(() => setSpherePhase('on'), 2500);
+                                    }}
                                     className="fixed top-[5.4rem] left-4 z-50 flex items-center gap-1.5 font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full transition-colors hover:text-accent"
                                     style={{
                                         background: 'rgba(11,18,32,0.85)',
@@ -205,42 +216,58 @@ function App() {
             {/* AI Portfolio Assistant */}
             {entered && <PortfolioAssistant />}
 
-            {/* Brain Sphere — lazy loaded 3D overlay */}
-            <AnimatePresence>
-                {brainSphere && (
+            {/* Brain Sphere — preloads during transition, revealed when phase = 'on' */}
+            {/* visibility:hidden keeps the WebGL context alive without showing anything */}
+            <div style={{ visibility: spherePhase === 'transitioning' ? 'hidden' : 'visible' }}>
+                {spherePhase !== 'off' && (
                     <Suspense fallback={
-                        <div
-                            className="fixed inset-0 z-[110] flex flex-col items-center justify-center gap-4"
-                            style={{ background: '#0B1220' }}
-                        >
-                            <div className="flex gap-1.5">
-                                {[0,1,2].map(i => (
-                                    <div
-                                        key={i}
-                                        className="rounded-full animate-pulse"
-                                        style={{
-                                            width: 6, height: 6,
-                                            background: '#3DE3FF',
-                                            animationDelay: `${i * 0.18}s`,
-                                            opacity: 0.7,
-                                        }}
-                                    />
-                                ))}
-                            </div>
-                            <p className="font-mono text-[11px]" style={{ color: 'rgba(154,176,204,0.45)' }}>
-                                Loading Brain Sphere…
-                            </p>
-                            <button
-                                onClick={() => setBrainSphere(false)}
-                                className="font-mono text-[10px] mt-2"
-                                style={{ color: 'rgba(154,176,204,0.25)' }}
+                        spherePhase === 'on' ? (
+                            <div
+                                className="fixed inset-0 z-[110] flex flex-col items-center justify-center gap-4"
+                                style={{ background: '#0B1220' }}
                             >
-                                cancel
-                            </button>
-                        </div>
+                                <div className="flex gap-1.5">
+                                    {[0, 1, 2].map(i => (
+                                        <div
+                                            key={i}
+                                            className="rounded-full animate-pulse"
+                                            style={{
+                                                width: 6, height: 6,
+                                                background: '#3DE3FF',
+                                                animationDelay: `${i * 0.18}s`,
+                                                opacity: 0.7,
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                                <p className="font-mono text-[11px]" style={{ color: 'rgba(154,176,204,0.45)' }}>
+                                    Loading Brain Sphere…
+                                </p>
+                                <button
+                                    onClick={() => setSpherePhase('off')}
+                                    className="font-mono text-[10px] mt-2"
+                                    style={{ color: 'rgba(154,176,204,0.25)' }}
+                                >
+                                    cancel
+                                </button>
+                            </div>
+                        ) : null
                     }>
-                        <BrainSphere onClose={() => setBrainSphere(false)} />
+                        <BrainSphere
+                            runWave={spherePhase === 'on'}
+                            onClose={() => {
+                                if (sphereTimerRef.current) clearTimeout(sphereTimerRef.current);
+                                setSpherePhase('off');
+                            }}
+                        />
                     </Suspense>
+                )}
+            </div>
+
+            {/* Cinematic morph overlay — plays during 'transitioning' phase */}
+            <AnimatePresence>
+                {spherePhase === 'transitioning' && (
+                    <SphereTransition key="sphere-transition" />
                 )}
             </AnimatePresence>
 

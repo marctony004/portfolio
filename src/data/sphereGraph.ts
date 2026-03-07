@@ -11,6 +11,7 @@ export interface SphereNodeData {
     relatedIds: string[];
     position: [number, number, number];
     nodeType: 'center' | 'orbit' | 'child';
+    parentId?: string; // set for child nodes; drives constellation visibility
 }
 
 export interface SphereEdgeData {
@@ -19,7 +20,13 @@ export interface SphereEdgeData {
     type: 'primary' | 'child' | 'cross';
 }
 
-// Fibonacci sphere distribution for even spacing
+// Spherical coords → cartesian
+function spherePos(theta: number, phi: number, r: number): [number, number, number] {
+    const sp = Math.sin(phi), cp = Math.cos(phi);
+    return [r * sp * Math.cos(theta), r * cp, r * sp * Math.sin(theta)];
+}
+
+// Fibonacci sphere — fallback for unlisted nodes
 function fibPos(i: number, total: number, r: number): [number, number, number] {
     if (total === 1) return [0, r, 0];
     const golden = Math.PI * (Math.sqrt(5) - 1);
@@ -62,10 +69,33 @@ function childrenAroundParent(
     });
 }
 
+const ORBIT_CATEGORY: Record<string, string> = {
+    projects:   'Portfolio',
+    cv:         'AI / ML Skill',
+    nlp:        'AI / ML Skill',
+    leadership: 'Experience',
+    education:  'Education',
+    contact:    'Connect',
+};
+
 const ORBIT_R = 2.5;
 const CHILD_R = 3.85;
 
-const orbitPositions = orbitNodes.map((_, i) => fibPos(i, orbitNodes.length, ORBIT_R));
+// Intentional zone layout — semantic grouping for spatial readability.
+// Tech/AI skills cluster on the right hemisphere (+z), leadership/education on the left (-z),
+// projects prominent at front-top, contact tucked at front-bottom.
+const ORBIT_ZONE: Record<string, [number, number, number]> = {
+    projects:   spherePos(0,      0.85, ORBIT_R), // front-top, prominent
+    cv:         spherePos(1.15,   1.05, ORBIT_R), // right-upper (tech skills)
+    nlp:        spherePos(1.95,   1.50, ORBIT_R), // right-equator (AI / NLP)
+    leadership: spherePos(-1.05,  0.80, ORBIT_R), // left-top (leadership)
+    education:  spherePos(-1.85,  1.25, ORBIT_R), // left-mid (education)
+    contact:    spherePos(0.15,   2.30, ORBIT_R), // front-bottom
+};
+
+const orbitPositions = orbitNodes.map((n, i) =>
+    ORBIT_ZONE[n.id] ?? fibPos(i, orbitNodes.length, ORBIT_R),
+);
 const projectsIdx    = orbitNodes.findIndex(n => n.id === 'projects');
 const childPos       = childrenAroundParent(
     orbitPositions[projectsIdx],
@@ -98,7 +128,7 @@ export const sphereNodes: SphereNodeData[] = [
     ...orbitNodes.map((n, i): SphereNodeData => ({
         id: n.id,
         label: n.label,
-        category: n.id,
+        category: ORBIT_CATEGORY[n.id] ?? n.label,
         summary: n.summary,
         tech: n.tech,
         bullets: n.bullets,
@@ -117,10 +147,16 @@ export const sphereNodes: SphereNodeData[] = [
         bullets: child.bullets,
         links: child.links,
         relatedIds: ['projects'],
-        position: childPos[i],
+        position: childPos[i], // placeholder; overridden by constellation layout at runtime
         nodeType: 'child',
+        parentId: 'projects',
     })),
 ];
+
+// Set of node ids that have expandable children
+export const EXPANDABLE_IDS = new Set(
+    sphereNodes.filter(n => n.parentId).map(n => n.parentId!),
+);
 
 export const sphereEdges: SphereEdgeData[] = [
     ...orbitNodes.map(n => ({ source: 'marc-smith', target: n.id, type: 'primary' as const })),

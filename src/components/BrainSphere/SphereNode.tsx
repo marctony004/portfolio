@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
-import type { Mesh } from 'three';
+import * as THREE from 'three';
 import type { SphereNodeData } from '../../data/sphereGraph';
 
 const NODE_RADIUS: Record<SphereNodeData['nodeType'], number> = {
@@ -18,33 +19,92 @@ const BASE_COLOR: Record<SphereNodeData['nodeType'], string> = {
 interface Props {
     node: SphereNodeData;
     isSelected: boolean;
-    isFocused: boolean;     // nearest to screen center (gesture target)
-    isDimmed: boolean;      // when another node is selected
+    isFocused: boolean;
+    isDimmed: boolean;
     onSelect: (id: string) => void;
     hasDraggedRef: React.MutableRefObject<boolean>;
+    // Neural activation wave — null means this node is not part of the wave path
+    waveDelay?:   number | null;
+    waveTimeRef?: React.MutableRefObject<number>;
 }
 
-export function SphereNode({ node, isSelected, isFocused, isDimmed, onSelect, hasDraggedRef }: Props) {
-    const meshRef  = useRef<Mesh>(null);
+export function SphereNode({ node, isSelected, isFocused, isDimmed, onSelect, hasDraggedRef, waveDelay = null, waveTimeRef }: Props) {
+    const meshRef    = useRef<THREE.Mesh>(null);
+    const coreMatRef = useRef<THREE.MeshStandardMaterial>(null);
+    const glowMatRef = useRef<THREE.MeshBasicMaterial>(null);
     const [hovered, setHovered] = useState(false);
 
-    const r      = NODE_RADIUS[node.nodeType];
-    const active = isSelected || hovered || isFocused;
-    const color  = BASE_COLOR[node.nodeType];
+    const r     = NODE_RADIUS[node.nodeType];
+    const color = BASE_COLOR[node.nodeType];
 
-    const emissiveIntensity = isSelected ? 1.4 : hovered ? 0.9 : isFocused ? 0.7 : 0.35;
-    const opacity           = isDimmed ? 0.28 : 1;
-    const scale             = isSelected ? 1.45 : hovered ? 1.2 : isFocused ? 1.1 : 1;
+    // Child nodes fade in from 0 on mount; all others start fully visible.
+    const appearRef = useRef(node.nodeType === 'child' ? 0 : 1);
+
+    // Mirror reactive values so useFrame always reads fresh state
+    const stateRef = useRef({ isSelected, hovered, isFocused, isDimmed });
+    useEffect(() => {
+        stateRef.current = { isSelected, hovered, isFocused, isDimmed };
+    });
+
+    useFrame(({ camera }) => {
+        const coreM = coreMatRef.current;
+        const glowM = glowMatRef.current;
+        if (!coreM || !glowM) return;
+
+        // Lerp appearing opacity (child nodes only)
+        if (appearRef.current < 1) {
+            appearRef.current = Math.min(1, appearRef.current + 0.035);
+        }
+        const af = appearRef.current;
+
+        const { isSelected, hovered, isFocused, isDimmed } = stateRef.current;
+        const act = isSelected || hovered || isFocused;
+
+        // Depth factor: nodes facing camera are brighter; back-hemisphere nodes are dimmer.
+        // Center node stays full brightness (sits at origin).
+        let df = 1.0;
+        if (node.nodeType !== 'center') {
+            const [nx, ny, nz] = node.position;
+            const cp    = camera.position;
+            const cpLen = Math.sqrt(cp.x * cp.x + cp.y * cp.y + cp.z * cp.z) || 1;
+            const nLen  = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+            const dot   = (cp.x / cpLen * nx / nLen) + (cp.y / cpLen * ny / nLen) + (cp.z / cpLen * nz / nLen);
+            const depth = 0.5 + dot * 0.5;
+            df = 0.38 + depth * 0.62;
+        }
+
+        coreM.opacity           = (isDimmed ? 0.22 : 1.0) * df * af;
+        coreM.emissiveIntensity = (isSelected ? 1.4 : hovered ? 0.9 : isFocused ? 0.7 : 0.35) * (0.5 + df * 0.5);
+
+        const glowBase = act ? (isSelected ? 0.12 : 0.06) : 0.02;
+        glowM.opacity  = glowBase * df * af;
+
+        // Neural activation wave — bell curve contribution (0→peak→0)
+        if (waveDelay != null && waveTimeRef?.current) {
+            const elapsed     = performance.now() - waveTimeRef.current;
+            const nodeElapsed = Math.max(0, elapsed - waveDelay);
+            const t           = Math.min(1, nodeElapsed / 700);
+            if (t > 0 && t < 1) {
+                const wave = Math.sin(t * Math.PI);
+                coreM.emissiveIntensity = Math.min(2.0, coreM.emissiveIntensity + wave * 0.22);
+                glowM.opacity           = Math.min(0.18, glowM.opacity + wave * 0.045);
+            }
+        }
+    });
+
+    const scale  = isSelected ? 1.45 : hovered ? 1.2 : isFocused ? 1.1 : 1;
+    const active = isSelected || hovered || isFocused;
 
     return (
         <group position={node.position}>
-            {/* Outer glow sphere */}
+            {/* Outer glow halo */}
             <mesh scale={scale * 2.4} renderOrder={0}>
                 <sphereGeometry args={[r, 12, 12]} />
                 <meshBasicMaterial
+                    ref={glowMatRef}
                     color={color}
                     transparent
-                    opacity={active ? (isSelected ? 0.12 : 0.06) : 0.025}
+                    opacity={active ? (isSelected ? 0.12 : 0.06) : 0.02}
                     depthWrite={false}
                 />
             </mesh>
@@ -62,17 +122,18 @@ export function SphereNode({ node, isSelected, isFocused, isDimmed, onSelect, ha
             >
                 <sphereGeometry args={[r, 20, 20]} />
                 <meshStandardMaterial
+                    ref={coreMatRef}
                     color={color}
                     emissive={color}
-                    emissiveIntensity={emissiveIntensity}
+                    emissiveIntensity={isSelected ? 1.4 : hovered ? 0.9 : isFocused ? 0.7 : 0.35}
                     transparent
-                    opacity={opacity}
+                    opacity={isDimmed ? 0.22 : 1.0}
                     roughness={0.2}
                     metalness={0.4}
                 />
             </mesh>
 
-            {/* Selected ring */}
+            {/* Selection ring */}
             {isSelected && (
                 <mesh rotation={[Math.PI / 2, 0, 0]}>
                     <torusGeometry args={[r * 2.6, r * 0.15, 8, 48]} />
@@ -91,14 +152,15 @@ export function SphereNode({ node, isSelected, isFocused, isDimmed, onSelect, ha
                     fontFamily: 'monospace',
                     fontSize: node.nodeType === 'center' ? 13 : 10,
                     fontWeight: node.nodeType === 'center' ? 600 : 400,
-                    color: isSelected ? '#3DE3FF' : hovered ? '#E6EEF9' : isDimmed ? 'rgba(154,176,204,0.3)' : '#9AB0CC',
-                    background: 'rgba(11,18,32,0.80)',
-                    border: `1px solid ${active ? 'rgba(61,227,255,0.3)' : 'rgba(61,227,255,0.1)'}`,
+                    color: isSelected ? '#3DE3FF' : hovered ? '#E6EEF9' : isDimmed ? 'rgba(154,176,204,0.22)' : '#9AB0CC',
+                    background: 'rgba(11,18,32,0.82)',
+                    border: `1px solid ${active ? 'rgba(61,227,255,0.28)' : 'rgba(61,227,255,0.07)'}`,
                     borderRadius: 4,
                     padding: node.nodeType === 'center' ? '3px 8px' : '2px 6px',
                     whiteSpace: 'nowrap',
                     letterSpacing: '0.04em',
-                    transition: 'color 0.2s, border-color 0.2s',
+                    transition: 'color 0.2s, border-color 0.2s, opacity 0.2s',
+                    opacity: isDimmed ? 0.45 : 1,
                 }}>
                     {node.label}
                 </div>

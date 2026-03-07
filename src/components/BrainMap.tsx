@@ -42,9 +42,10 @@ interface Props {
     jumpTo?: string | null;
     onJumpDone?: () => void;
     paletteOpen?: boolean;
+    contracting?: boolean; // true during the BrainSphere morph transition
 }
 
-export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen }: Props) => {
+export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen, contracting = false }: Props) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [dims, setDims]       = useState({ w: 800, h: 600 });
     const [hovered, setHovered] = useState<string | null>(null);
@@ -72,9 +73,11 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
 
     const scaleCurrents = useRef([1, 1, 1, 1, 1, 1]);
     const scaleTargets  = useRef([1, 1, 1, 1, 1, 1]);
-    const mountTimeRef  = useRef<number | null>(null);
-    const hoveredRef    = useRef<string | null>(null);
-    const selectedIdRef = useRef<string | null>(null);
+    const mountTimeRef    = useRef<number | null>(null);
+    const hoveredRef      = useRef<string | null>(null);
+    const selectedIdRef   = useRef<string | null>(null);
+    const contractingRef  = useRef(contracting);
+    useEffect(() => { contractingRef.current = contracting; }, [contracting]);
 
     // Random orbit node reveal order — shuffled once per mount
     const orbitRevealOrder = useMemo(() => {
@@ -112,7 +115,7 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
 
     // Orbital physics loop — 60 fps, mutates MotionValues directly (zero React re-renders)
     useAnimationFrame((t) => {
-        if (reduced) return;
+        if (reduced || contractingRef.current) return;
         if (mountTimeRef.current === null) mountTimeRef.current = t;
         const elapsed = t - mountTimeRef.current;
         if (elapsed < 2000) return;
@@ -342,8 +345,16 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
             {/* Camera wrapper */}
             <motion.div
                 className="absolute inset-0"
-                animate={{ x: camera.x, y: camera.y, scale: camera.scale }}
-                transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+                animate={
+                    contracting
+                        ? { x: 0, y: 0, scale: 0.35, opacity: 0 }
+                        : { x: camera.x, y: camera.y, scale: camera.scale, opacity: 1 }
+                }
+                transition={
+                    contracting
+                        ? { duration: 0.90, ease: [0.55, 0, 1, 0.45] }
+                        : { duration: 0.60, ease: [0.25, 0.46, 0.45, 0.94] }
+                }
                 style={{ transformOrigin: 'center' }}
             >
                 <svg className="absolute inset-0 pointer-events-none overflow-visible" width={dims.w} height={dims.h}>
