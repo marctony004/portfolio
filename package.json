@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.32",
-    "@react-three/drei": "^10.7.7",
-    "@react-three/fiber": "^9.5.0",
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
     "@tailwindcss/vite": "^4.2.1",
     "@types/three": "^0.183.1",
     "clsx": "^2.1.1",
