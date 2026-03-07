@@ -208,7 +208,37 @@ function App() {
             {/* Brain Sphere — lazy loaded 3D overlay */}
             <AnimatePresence>
                 {brainSphere && (
-                    <Suspense fallback={null}>
+                    <Suspense fallback={
+                        <div
+                            className="fixed inset-0 z-[110] flex flex-col items-center justify-center gap-4"
+                            style={{ background: '#0B1220' }}
+                        >
+                            <div className="flex gap-1.5">
+                                {[0,1,2].map(i => (
+                                    <div
+                                        key={i}
+                                        className="rounded-full animate-pulse"
+                                        style={{
+                                            width: 6, height: 6,
+                                            background: '#3DE3FF',
+                                            animationDelay: `${i * 0.18}s`,
+                                            opacity: 0.7,
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                            <p className="font-mono text-[11px]" style={{ color: 'rgba(154,176,204,0.45)' }}>
+                                Loading Brain Sphere…
+                            </p>
+                            <button
+                                onClick={() => setBrainSphere(false)}
+                                className="font-mono text-[10px] mt-2"
+                                style={{ color: 'rgba(154,176,204,0.25)' }}
+                            >
+                                cancel
+                            </button>
+                        </div>
+                    }>
                         <BrainSphere onClose={() => setBrainSphere(false)} />
                     </Suspense>
                 )}
