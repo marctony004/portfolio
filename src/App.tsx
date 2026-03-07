@@ -7,6 +7,7 @@ import { InspectorPanel } from './components/InspectorPanel';
 import { CommandPalette } from './components/CommandPalette';
 import { RecruiterView } from './components/RecruiterView';
 import { MobileLanding } from './components/MobileLanding';
+import { ShortcutHelp } from './components/ShortcutHelp';
 import { PortfolioAssistant } from './components/PortfolioAssistant';
 import type { OrbitNodeData, ChildNodeData } from './data/brainData';
 
@@ -25,6 +26,7 @@ function App() {
     const [mobileViewMap,   setMobileViewMap]   = useState(false);
     const [recruiterMode,   setRecruiterMode]   = useState(false);
     const [gestureDemo,   setGestureDemo]   = useState(false);
+    const [helpOpen,      setHelpOpen]      = useState(false);
 
     // Responsive check
     useEffect(() => {
@@ -38,17 +40,21 @@ function App() {
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if (!entered) return;
-            if (e.key === '/' && !palette && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+            if (e.key === '/' && !palette && !helpOpen && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
                 e.preventDefault();
                 setPalette(true);
             }
-            if (e.key === 'Escape' && selected && !palette) {
+            if (e.key === '?' && !palette && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+                e.preventDefault();
+                setHelpOpen(h => !h);
+            }
+            if (e.key === 'Escape' && selected && !palette && !helpOpen) {
                 setSelected(null);
             }
         };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
-    }, [entered, palette, selected]);
+    }, [entered, palette, selected, helpOpen]);
 
     // Write URL hash when selection changes
     useEffect(() => {
@@ -177,6 +183,9 @@ function App() {
                 onAction={handleCommand}
             />
 
+            {/* Keyboard shortcut help */}
+            <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
+
             {/* AI Portfolio Assistant */}
             {entered && <PortfolioAssistant />}
 
@@ -189,14 +198,6 @@ function App() {
                 )}
             </AnimatePresence>
 
-            {/* "/" hint when no inspector open */}
-            {entered && !isMobile && !selected && (
-                <div className="fixed top-4 right-4 pointer-events-none z-10">
-                    <p className="font-mono text-[10px] text-muted/30 tracking-widest">
-                        Press <span className="text-accent/40">/</span> to search
-                    </p>
-                </div>
-            )}
         </div>
     );
 }

@@ -322,7 +322,7 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
         <div ref={containerRef} className="relative w-full h-full overflow-hidden" onClick={handleBgClick}>
 
             {/* Capability filter chips */}
-            <CapabilityChips active={activeFilter} onToggle={(cap) => { setActiveFilter(cap); onSelect(null); }} />
+            <CapabilityChips active={activeFilter} onToggle={(cap) => setActiveFilter(cap)} />
 
             {/* Keyboard nav hint */}
             <AnimatePresence>
@@ -616,7 +616,7 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
             {/* Bottom hint */}
             <div className="absolute bottom-5 left-5 pointer-events-none">
                 <p className="font-mono text-[10px] text-muted/35 tracking-widest">
-                    click · <span style={{ color: 'rgba(61,227,255,0.4)' }}>↑↓</span> keys · press <span className="text-accent/50">/</span> to search
+                    click · <span style={{ color: 'rgba(61,227,255,0.4)' }}>↑↓</span> keys · <span className="text-accent/50">/</span> search · <span className="text-accent/50">?</span> help
                 </p>
             </div>
         </div>
