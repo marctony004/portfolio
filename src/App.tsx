@@ -11,7 +11,8 @@ import { ShortcutHelp } from './components/ShortcutHelp';
 import { PortfolioAssistant } from './components/PortfolioAssistant';
 import type { OrbitNodeData, ChildNodeData } from './data/brainData';
 
-const GestureDemo = lazy(() => import('./components/GestureDemo'));
+const GestureDemo  = lazy(() => import('./components/GestureDemo'));
+const BrainSphere  = lazy(() => import('./components/BrainSphere'));
 
 type SelectedNode = (OrbitNodeData | ChildNodeData) & { id: string };
 
@@ -26,6 +27,7 @@ function App() {
     const [mobileViewMap,   setMobileViewMap]   = useState(false);
     const [recruiterMode,   setRecruiterMode]   = useState(false);
     const [gestureDemo,   setGestureDemo]   = useState(false);
+    const [brainSphere,   setBrainSphere]   = useState(false);
     const [helpOpen,      setHelpOpen]      = useState(false);
 
     // Responsive check
@@ -170,6 +172,20 @@ function App() {
                                 >
                                     <span style={{ color: '#3DE3FF', fontSize: 11 }}>✋</span> Gesture Demo
                                 </button>
+
+                                {/* Brain Sphere trigger */}
+                                <button
+                                    onClick={() => setBrainSphere(true)}
+                                    className="fixed top-[5.4rem] left-4 z-50 flex items-center gap-1.5 font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full transition-colors hover:text-accent"
+                                    style={{
+                                        background: 'rgba(11,18,32,0.85)',
+                                        border: '1px solid rgba(61,227,255,0.15)',
+                                        backdropFilter: 'blur(10px)',
+                                        color: 'rgba(154,176,204,0.6)',
+                                    }}
+                                >
+                                    <span style={{ color: '#3DE3FF', fontSize: 11 }}>◉</span> Brain Sphere
+                                </button>
                             </>
                         )}
                     </motion.div>
@@ -188,6 +204,15 @@ function App() {
 
             {/* AI Portfolio Assistant */}
             {entered && <PortfolioAssistant />}
+
+            {/* Brain Sphere — lazy loaded 3D overlay */}
+            <AnimatePresence>
+                {brainSphere && (
+                    <Suspense fallback={null}>
+                        <BrainSphere onClose={() => setBrainSphere(false)} />
+                    </Suspense>
+                )}
+            </AnimatePresence>
 
             {/* Gesture Demo overlay — lazy loaded */}
             <AnimatePresence>
