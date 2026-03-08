@@ -273,7 +273,7 @@ function App() {
 
                                 {/* Inspector */}
                                 <InspectorPanel
-                                    node={selected}
+                                    node={isTourActive && !isUserExploring ? null : selected}
                                     onClose={() => setSelected(null)}
                                     onBreadcrumb={() => { setSelected(null); setJumpTo('projects'); }}
                                     onGestureDemo={() => setGestureDemo(true)}
