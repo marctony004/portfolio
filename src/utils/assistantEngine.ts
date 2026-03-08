@@ -55,11 +55,11 @@ const INTENT_PATTERNS: Array<{ intent: Intent; keywords: string[] }> = [
     },
     {
         intent: 'certifications',
-        keywords: ['certification', 'certified', 'cert', 'nvidia', 'microsoft azure', 'google cert', 'ibm', 'credential', 'badge'],
+        keywords: ['certification', 'certified', 'cert', 'nvidia', 'microsoft azure', 'azure', 'google cert', 'ibm', 'credential', 'badge'],
     },
     {
         intent: 'contact',
-        keywords: ['contact', 'reach marc', 'email', 'hire marc', 'linkedin', 'github profile', 'available', 'open to work', 'get in touch'],
+        keywords: ['contact', 'reach marc', 'email', 'hire marc', 'linkedin', 'github profile', 'available', 'open to work', 'get in touch', 'role', 'open to', 'position', 'opportunity'],
     },
     {
         intent: 'current_focus',
