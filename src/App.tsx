@@ -15,7 +15,6 @@ import type { OrbitNodeData, ChildNodeData } from './data/brainData';
 
 import { SphereTransition } from './components/SphereTransition';
 
-const GestureDemo  = lazy(() => import('./components/GestureDemo'));
 const BrainSphere  = lazy(() => import('./components/BrainSphere'));
 
 type SelectedNode = (OrbitNodeData | ChildNodeData) & { id: string };
@@ -30,7 +29,6 @@ function App() {
     const [mobilePastGate,  setMobilePastGate]  = useState(false);
     const [mobileViewMap,   setMobileViewMap]   = useState(false);
     const [recruiterMode,   setRecruiterMode]   = useState(false);
-    const [gestureDemo,   setGestureDemo]   = useState(false);
     const [spherePhase,   setSpherePhase]   = useState<'off' | 'transitioning' | 'on'>('off');
     const [helpOpen,      setHelpOpen]      = useState(false);
     const sphereTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -277,7 +275,6 @@ function App() {
                                     node={isTourActive && !isUserExploring ? null : selected}
                                     onClose={() => setSelected(null)}
                                     onBreadcrumb={() => { setSelected(null); setJumpTo('projects'); }}
-                                    onGestureDemo={() => setGestureDemo(true)}
                                 />
 
                                 {/* Recruiter mode toggle */}
@@ -292,21 +289,6 @@ function App() {
                                     }}
                                 >
                                     <span style={{ color: '#3DE3FF', fontSize: 11 }}>⊞</span> Recruiter View
-                                </button>
-
-                                {/* Gesture demo global trigger */}
-                                <button
-                                    onClick={() => setGestureDemo(true)}
-                                    className="fixed top-12 left-4 z-50 flex items-center gap-1.5 font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full transition-colors hover:text-accent"
-                                    style={{
-                                        background: 'rgba(11,18,32,0.85)',
-                                        border: '1px solid rgba(61,227,255,0.15)',
-                                        backdropFilter: 'blur(10px)',
-                                        color: 'rgba(154,176,204,0.6)',
-                                        marginTop: '0.4rem',
-                                    }}
-                                >
-                                    <span style={{ color: '#3DE3FF', fontSize: 11 }}>✋</span> Gesture Demo
                                 </button>
 
                                 {/* Brain Sphere trigger */}
@@ -416,15 +398,6 @@ function App() {
             <AnimatePresence>
                 {spherePhase === 'transitioning' && (
                     <SphereTransition key="sphere-transition" />
-                )}
-            </AnimatePresence>
-
-            {/* Gesture Demo overlay — lazy loaded */}
-            <AnimatePresence>
-                {gestureDemo && (
-                    <Suspense fallback={null}>
-                        <GestureDemo onClose={() => setGestureDemo(false)} />
-                    </Suspense>
                 )}
             </AnimatePresence>
 
