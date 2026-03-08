@@ -251,41 +251,48 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
     useEffect(() => { allNodesRef.current = allNodes; },  [allNodes]);
 
     const moveCamera = useCallback((nx: number, ny: number, cinematic = false) => {
-        const dx      = (nx - cx) * 0.12;
-        const dy      = (ny - cy) * 0.12;
-        const targetX = -dx;
-        const targetY = -dy;
-        const targetScale = cinematic ? 1.03 : 1.04;
+        // Tour uses a deeper pan + more zoom; normal clicks stay subtle
+        const panFactor   = cinematic ? 0.38 : 0.12;
+        const targetScale = cinematic ? 1.18 : 1.04;
+
+        const targetX = -(nx - cx) * panFactor;
+        // Lift the camera when a bottom node is spotlighted so it clears the tour panel
+        const yBias   = cinematic && ny > cy ? -80 : 0;
+        const targetY = -(ny - cy) * panFactor + yBias;
 
         if (cinematic && !reduced) {
-            // Arc path: find the perpendicular offset at the travel midpoint
-            const prev     = cameraRef.current;
-            const travelX  = targetX - prev.x;
-            const travelY  = targetY - prev.y;
-            const len      = Math.hypot(travelX, travelY);
-            // Perpendicular (CCW 90°), scaled to 28% of travel distance, capped at 22px
-            const arcAmt   = Math.min(len * 0.28, 22);
-            const perpX    = len > 0 ? (-travelY / len) * arcAmt : 0;
-            const perpY    = len > 0 ? ( travelX / len) * arcAmt : 0;
-            const arcX     = (prev.x + targetX) / 2 + perpX;
-            const arcY     = (prev.y + targetY) / 2 + perpY;
+            // Arc path: perpendicular offset at the travel midpoint for a curved feel
+            const prev    = cameraRef.current;
+            const travelX = targetX - prev.x;
+            const travelY = targetY - prev.y;
+            const len     = Math.hypot(travelX, travelY);
+            // CCW-90° perpendicular, 28% of travel distance, capped at 24px
+            const arcAmt  = Math.min(len * 0.28, 24);
+            const perpX   = len > 0 ? (-travelY / len) * arcAmt : 0;
+            const perpY   = len > 0 ? ( travelX / len) * arcAmt : 0;
+            const arcX    = (prev.x + targetX) / 2 + perpX;
+            const arcY    = (prev.y + targetY) / 2 + perpY;
 
+            // x/y follow the arc path; scale is a flat target so there's no bounce
             cameraControls.start({
-                x:     [prev.x,     arcX,   targetX],
-                y:     [prev.y,     arcY,   targetY],
-                scale: [prev.scale, 1.06,   targetScale],
+                x:       [prev.x, arcX, targetX],
+                y:       [prev.y, arcY, targetY],
+                scale:   targetScale,
                 opacity: 1,
                 transition: {
-                    duration: 1.1,
-                    ease: [0.45, 0.05, 0.25, 1.0], // easeInOutQuart feel
-                    times: [0, 0.42, 1],
+                    duration: 1.15,
+                    ease:     [0.45, 0.05, 0.25, 1.0], // easeInOutQuart
+                    times:    [0, 0.42, 1],
                 },
             });
         } else {
             cameraControls.start({
                 x: targetX, y: targetY,
                 scale: targetScale, opacity: 1,
-                transition: { duration: 0.60, ease: [0.25, 0.46, 0.45, 0.94] },
+                transition: {
+                    duration: cinematic ? 0.45 : 0.60,
+                    ease: [0.25, 0.46, 0.45, 0.94],
+                },
             });
         }
 
