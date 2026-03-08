@@ -277,56 +277,77 @@ function App() {
                                     onBreadcrumb={() => { setSelected(null); setJumpTo('projects'); }}
                                 />
 
-                                {/* Recruiter mode toggle */}
-                                <button
-                                    onClick={() => setRecruiterMode(true)}
-                                    className="fixed top-4 left-4 z-50 flex items-center gap-1.5 font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full transition-colors hover:text-accent"
-                                    style={{
-                                        background: 'rgba(11,18,32,0.85)',
-                                        border: '1px solid rgba(61,227,255,0.15)',
-                                        backdropFilter: 'blur(10px)',
-                                        color: 'rgba(154,176,204,0.6)',
-                                    }}
-                                >
-                                    <span style={{ color: '#3DE3FF', fontSize: 11 }}>⊞</span> Recruiter View
-                                </button>
-
-                                {/* Brain Sphere trigger */}
-                                <button
-                                    onClick={() => {
-                                        if (spherePhase !== 'off') return;
-                                        if (sphereTimerRef.current) clearTimeout(sphereTimerRef.current);
-                                        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-                                        if (reduced) { setSpherePhase('on'); return; }
-                                        setSpherePhase('transitioning');
-                                        sphereTimerRef.current = setTimeout(() => setSpherePhase('on'), 3000);
-                                    }}
-                                    className="fixed top-[5.4rem] left-4 z-50 flex items-center gap-1.5 font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full transition-colors hover:text-accent"
-                                    style={{
-                                        background: 'rgba(11,18,32,0.85)',
-                                        border: '1px solid rgba(61,227,255,0.15)',
-                                        backdropFilter: 'blur(10px)',
-                                        color: 'rgba(154,176,204,0.6)',
-                                    }}
-                                >
-                                    <span style={{ color: '#3DE3FF', fontSize: 11 }}>◉</span> Brain Sphere
-                                </button>
-
-                                {/* Guided tour trigger */}
-                                {!isTourActive && (
-                                    <button
-                                        onClick={startTour}
-                                        className="fixed top-[7.8rem] left-4 z-50 flex items-center gap-1.5 font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full transition-colors hover:text-accent"
+                                {/* Top-left nav cluster */}
+                                <div className="fixed top-4 left-4 z-50 flex flex-col gap-2">
+                                    {/* Recruiter View */}
+                                    <motion.button
+                                        onClick={() => setRecruiterMode(true)}
+                                        className="flex items-center gap-1.5 font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full"
                                         style={{
                                             background: 'rgba(11,18,32,0.85)',
-                                            border: '1px solid rgba(61,227,255,0.22)',
+                                            border: '1px solid rgba(61,227,255,0.15)',
                                             backdropFilter: 'blur(10px)',
-                                            color: 'rgba(154,176,204,0.7)',
+                                            color: 'rgba(154,176,204,0.6)',
                                         }}
+                                        whileHover={{
+                                            color: '#3DE3FF',
+                                            borderColor: 'rgba(61,227,255,0.5)',
+                                            boxShadow: '0 0 18px rgba(61,227,255,0.18)',
+                                        }}
+                                        transition={{ duration: 0.18 }}
                                     >
-                                        <span style={{ color: '#3DE3FF', fontSize: 11 }}>▷</span> Take a 60-second tour
-                                    </button>
-                                )}
+                                        <span style={{ color: '#3DE3FF', fontSize: 11 }}>⊞</span> Recruiter View
+                                    </motion.button>
+
+                                    {/* Brain Sphere */}
+                                    <motion.button
+                                        onClick={() => {
+                                            if (spherePhase !== 'off') return;
+                                            if (sphereTimerRef.current) clearTimeout(sphereTimerRef.current);
+                                            const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                                            if (reduced) { setSpherePhase('on'); return; }
+                                            setSpherePhase('transitioning');
+                                            sphereTimerRef.current = setTimeout(() => setSpherePhase('on'), 3000);
+                                        }}
+                                        className="flex items-center gap-1.5 font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full"
+                                        style={{
+                                            background: 'rgba(11,18,32,0.85)',
+                                            border: '1px solid rgba(61,227,255,0.15)',
+                                            backdropFilter: 'blur(10px)',
+                                            color: 'rgba(154,176,204,0.6)',
+                                        }}
+                                        whileHover={{
+                                            color: '#3DE3FF',
+                                            borderColor: 'rgba(61,227,255,0.5)',
+                                            boxShadow: '0 0 18px rgba(61,227,255,0.18)',
+                                        }}
+                                        transition={{ duration: 0.18 }}
+                                    >
+                                        <span style={{ color: '#3DE3FF', fontSize: 11 }}>◉</span> Brain Sphere
+                                    </motion.button>
+
+                                    {/* Guided tour */}
+                                    {!isTourActive && (
+                                        <motion.button
+                                            onClick={startTour}
+                                            className="flex items-center gap-1.5 font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full"
+                                            style={{
+                                                background: 'rgba(11,18,32,0.85)',
+                                                border: '1px solid rgba(61,227,255,0.15)',
+                                                backdropFilter: 'blur(10px)',
+                                                color: 'rgba(154,176,204,0.6)',
+                                            }}
+                                            whileHover={{
+                                                color: '#3DE3FF',
+                                                borderColor: 'rgba(61,227,255,0.5)',
+                                                boxShadow: '0 0 18px rgba(61,227,255,0.18)',
+                                            }}
+                                            transition={{ duration: 0.18 }}
+                                        >
+                                            <span style={{ color: '#3DE3FF', fontSize: 11 }}>▷</span> Take a 60-second tour
+                                        </motion.button>
+                                    )}
+                                </div>
                             </>
                         )}
                     </motion.div>
