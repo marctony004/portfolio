@@ -1,3 +1,6 @@
+import { orbitNodes } from '../data/brainData';
+import type { ChildNodeData } from '../data/brainData';
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface AssistantResponse {
@@ -8,41 +11,13 @@ export interface AssistantResponse {
 type Intent =
     | 'about' | 'projects' | 'computer_vision' | 'llm_nlp' | 'machine_learning'
     | 'full_stack' | 'skills' | 'leadership' | 'experience' | 'education'
-    | 'certifications' | 'contact' | 'current_focus' | 'vision' | 'fallback'
-    | 'project:ai-math-notes' | 'project:no-strings' | 'project:flowstate-1'
-    | 'project:flowstate-2' | 'project:smart-calendar' | 'project:calories';
+    | 'certifications' | 'contact' | 'current_focus' | 'vision' | 'fallback';
 
 // ── Intent patterns ───────────────────────────────────────────────────────────
 // Each keyword is weighted by word count (longer phrases score higher),
 // so specific patterns like "ai math notes" outrank generic ones like "project".
 
 const INTENT_PATTERNS: Array<{ intent: Intent; keywords: string[] }> = [
-    // ── Specific projects (checked first, highest priority) ──
-    {
-        intent: 'project:ai-math-notes',
-        keywords: ['ai math', 'math note', 'math notes', 'handwriting', 'handwritten', 'trocr', 'sympy', 'ocr math'],
-    },
-    {
-        intent: 'project:no-strings',
-        keywords: ['no strings', 'gesture music', 'gesture controlled', 'gesture-controlled', 'tone.js', 'tonejs', 'music system', 'hand music'],
-    },
-    {
-        intent: 'project:flowstate-1',
-        keywords: ['flowstate 1', 'flowstate1', 'flow state 1', 'focus coach', 'adhd', 'chrome extension', 'drift detection', 'focus extension', 'manifest v3'],
-    },
-    {
-        intent: 'project:flowstate-2',
-        keywords: ['flowstate 2', 'flowstate2', 'flow state 2', 'vapi', 'ai workspace', 'voice ai', 'rag workspace', 'pgvector project', 'musician workspace'],
-    },
-    {
-        intent: 'project:smart-calendar',
-        keywords: ['smart calendar', 'student calendar', 'syllabus', 'ocr schedule', 'auto-schedule', 'javafx calendar'],
-    },
-    {
-        intent: 'project:calories',
-        keywords: ['calories', 'calorie', 'calorie predictor', 'biometric', 'burned', 'streamlit', 'regression model'],
-    },
-
     // ── Skill domains ──
     {
         intent: 'computer_vision',
@@ -201,45 +176,73 @@ const RESPONSES: Record<Intent, AssistantResponse> = {
         followUps: ["What is Marc currently building?", "How can I contact Marc?", "What projects has Marc built?"],
     },
 
-    'project:ai-math-notes': {
-        answer: "AI Math Notes is a Flutter mobile app that converts handwritten math into GPT-4 step-by-step solutions. The pipeline: handwriting captured on a Flutter canvas → dual-model OCR (Google ML Kit for print + TrOCR for handwritten symbols) → normalization into SymPy syntax → symbolic solving (algebra, calculus, geometry) → Azure OpenAI GPT-4 Turbo generates a student-friendly explanation. Features theme selection, date sync, and stylus-exclusive input modes. Stack: Flutter, FastAPI, SymPy, Google ML Kit, TrOCR, Azure OpenAI.",
-        followUps: ["What other computer vision work has he done?", "What LLM integrations has Marc built?", "Show me all projects"],
-    },
-
-    'project:no-strings': {
-        answer: "No Strings Attached is a real-time gesture-controlled music system — no instruments or hardware needed. MediaPipe's 21-point hand landmark model tracks both hands at 30fps via webcam. A custom classifier maps landmark positions to musical gestures: x/y controls pitch and velocity, hand spread controls reverb, specific poses trigger beats. Sound is synthesized via a custom Tone.js engine with sub-50ms latency. Stack: Python, MediaPipe, OpenCV, NumPy, Tone.js, Web Audio API.",
-        followUps: ["What other CV work has Marc done?", "What are Marc's computer vision skills?", "Show me all projects"],
-    },
-
-    'project:flowstate-1': {
-        answer: "FlowState 1.0 is a Chrome extension that detects real-time digital distraction and delivers AI coaching for ADHD users. A Manifest V3 background service worker monitors active tab URLs without reading page content. Tabs are scored as focused, distracted, or ambiguous via domain heuristics. Gemini LLM generates calm, non-judgmental nudges — based on the user's current goal, drift history, and time since last focus. Behavioral data persists to chrome.storage.local and surfaces as session summaries. Stack: React, TypeScript, Chrome MV3, Gemini LLM, Zustand.",
-        followUps: ["Tell me about FlowState 2.0", "What NLP/LLM work has Marc done?", "Show me all projects"],
-    },
-
-    'project:flowstate-2': {
-        answer: "FlowState 2.0 is a full-stack AI workspace for musicians and producers. A Vapi + Gemini 1.5 voice AI agent with RAG lets users query their workspace in natural conversation. pgvector semantic search enables similarity lookup across ideas, tasks, and projects in Supabase PostgreSQL. A custom NLP task parser converts speech into structured tasks with deadlines and assignees. Supabase Edge Functions (Deno) handle real-time sync and auth. Attention patterns and session memory persist to the backend via Zustand. Stack: React 19, Supabase, Tailwind CSS v4, Vapi, Gemini AI, pgvector.",
-        followUps: ["What is RAG and how does Marc use it?", "What is Marc's voice AI setup?", "What is Marc currently focused on?"],
-    },
-
-    'project:smart-calendar': {
-        answer: "Smart Calendar is a JavaFX desktop app that parses academic syllabi and auto-generates conflict-free study schedules. Uploaded PDFs are processed through Google ML Kit OCR, extracting due dates, exam blocks, and assignment names via date regex and keyword matching. A rule-based scheduling engine distributes study blocks before every deadline, respecting user-defined availability with zero conflicts. The JavaFX UI supports drag-and-drop rescheduling, smart reminders, and monthly/weekly views. Stack: Java, JavaFX, Google ML Kit, OCR, Apache PDFBox.",
-        followUps: ["What are Marc's Java skills?", "What other computer vision work has he done?", "Show me all projects"],
-    },
-
-    'project:calories': {
-        answer: "Calories Predictor is an ML web app that estimates calories burned from biometric inputs — age, weight, height, duration, heart rate, and body temperature. Inputs are normalized and combined with engineered features (BMI, intensity ratio) before being passed to a linear regression model trained on a real-world exercise dataset, achieving R²=0.96 on held-out data. Deployed as an interactive Streamlit app with real-time sliders and live prediction output. Stack: Python, Scikit-learn, Pandas, NumPy, Matplotlib, Streamlit.",
-        followUps: ["What machine learning work has Marc done?", "What Python/ML tools does he use?", "Show me all projects"],
-    },
-
     fallback: {
         answer: "I'm not fully sure about that based on the current portfolio data, but I can tell you about Marc's projects, technical skills, work experience, or education. Try asking something more specific.",
         followUps: ["What projects has Marc built?", "What are Marc's technical skills?", "Tell me about Marc's experience"],
     },
 };
 
+// ── Dynamic project matching ───────────────────────────────────────────────────
+// Derives searchable terms from each project node in brainData at runtime,
+// so new projects added to brainData are automatically discoverable.
+
+const allProjects: ChildNodeData[] =
+    orbitNodes.find(n => n.id === 'projects')?.children ?? [];
+
+function buildProjectTerms(node: ChildNodeData): string[] {
+    const terms: string[] = [
+        node.id.replace(/-/g, ' '),           // "ai math notes", "no strings"
+        node.label.toLowerCase(),              // "AI Math Notes" → "ai math notes"
+        ...(node.tech ?? []).map(t => t.toLowerCase()),
+        ...(node.pipeline ?? []).map(p => p.label.toLowerCase()),
+        ...(node.pipeline ?? []).flatMap(p => (p.tools ?? []).map(t => t.toLowerCase())),
+    ];
+    return [...new Set(terms)];
+}
+
+function findProjectNode(query: string): ChildNodeData | null {
+    const q = query.toLowerCase();
+    let best: ChildNodeData | null = null;
+    let bestScore = 0;
+
+    for (const node of allProjects) {
+        const terms = buildProjectTerms(node);
+        let score = 0;
+        for (const term of terms) {
+            if (q.includes(term)) score += term.split(' ').length;
+        }
+        if (score > bestScore) { bestScore = score; best = node; }
+    }
+
+    return bestScore > 0 ? best : null;
+}
+
+function projectResponse(node: ChildNodeData): AssistantResponse {
+    const techLine = node.tech?.length
+        ? `Stack: ${node.tech.join(', ')}.`
+        : '';
+    const pipelineLine = node.pipeline?.length
+        ? `Pipeline: ${node.pipeline.map(p => p.label).join(' → ')}.`
+        : '';
+    const highlights = node.bullets.slice(0, 3).map(b => `• ${b}`).join(' ');
+
+    return {
+        answer: `${node.summary} ${highlights} ${pipelineLine} ${techLine}`.trim(),
+        followUps: [
+            'What other projects has Marc built?',
+            'What are his technical skills?',
+            'What is Marc currently focused on?',
+        ],
+    };
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export function generateResponse(query: string): AssistantResponse {
+    // Project-specific queries are resolved dynamically from brainData
+    const projectNode = findProjectNode(query);
+    if (projectNode) return projectResponse(projectNode);
+
     const intent = detectIntent(query);
     return RESPONSES[intent];
 }
