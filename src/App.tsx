@@ -482,14 +482,14 @@ function App() {
             <AnimatePresence>
                 {isTourActive && (
                     <GuidedTour
-                        key="guided-tour"
+                        key={tourStep === 0 ? 'tour-right' : 'tour-left'}
                         step={tourStep}
                         stepData={TOUR_STEPS[tourStep]}
                         isPaused={isTourPaused}
                         isBooting={isTourBooting}
                         isUserExploring={isUserExploring}
                         isComplete={isTourComplete}
-                        alignRight={TOUR_STEPS[tourStep]?.id !== 'assistant'}
+                        alignRight={tourStep === 0}
                         onNext={handleTourNext}
                         onBack={handleTourBack}
                         onPause={handleTourPause}
