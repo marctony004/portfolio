@@ -1,6 +1,109 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { TOUR_STEPS, type TourStep } from '../data/tourSteps';
 
+// ── Mini sphere preview ──────────────────────────────────────────────────────
+// Self-contained SVG; uses native SVG animateMotion — no Three.js or deps needed.
+function SphereMiniPreview({ focusMode = false }: { focusMode?: boolean }) {
+    const cx = 60, cy = 40, r = 28;
+    const eqRy = 6.5;
+
+    const orbitNodes = [
+        { x: 60, y: 13, r: 2.1 },
+        { x: 84, y: 29, r: 1.9 },
+        { x: 84, y: 53, r: 1.7 },
+        { x: 60, y: 67, r: 1.9 },
+        { x: 36, y: 53, r: 1.7 },
+        { x: 36, y: 29, r: 1.9 },
+    ];
+
+    // In focus-mode preview: node 2 (top-right) is "active", others dimmed
+    const activeIdx = focusMode ? 1 : -1;
+
+    return (
+        <svg
+            viewBox="0 0 120 80"
+            width="100%"
+            style={{ maxHeight: 84, display: 'block' }}
+            aria-hidden="true"
+        >
+            <defs>
+                <path
+                    id="sp-eq-orbit"
+                    d={`M ${cx + r} ${cy} A ${r} ${eqRy} 0 0 1 ${cx - r} ${cy} A ${r} ${eqRy} 0 0 1 ${cx + r} ${cy}`}
+                />
+                <path
+                    id="sp-tilt-orbit"
+                    d={`M ${cx + 24} ${cy} A 24 11 0 0 1 ${cx - 24} ${cy} A 24 11 0 0 1 ${cx + 24} ${cy}`}
+                    transform={`rotate(-38, ${cx}, ${cy})`}
+                />
+                <radialGradient id="sp-center-glow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#3DE3FF" stopOpacity="0.85" />
+                    <stop offset="100%" stopColor="#3DE3FF" stopOpacity="0" />
+                </radialGradient>
+            </defs>
+
+            {/* Sphere shell */}
+            <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(61,227,255,0.07)" strokeWidth="0.8" />
+
+            {/* Equatorial ring */}
+            <ellipse cx={cx} cy={cy} rx={r} ry={eqRy} fill="none" stroke="rgba(61,227,255,0.14)" strokeWidth="0.7" />
+
+            {/* Tilted meridian ring */}
+            <ellipse cx={cx} cy={cy} rx={24} ry={11} fill="none" stroke="rgba(61,227,255,0.08)" strokeWidth="0.6"
+                transform={`rotate(-38, ${cx}, ${cy})`} />
+
+            {/* Orbit node spokes + nodes */}
+            {orbitNodes.map((n, i) => {
+                const dimmed = focusMode && i !== activeIdx;
+                const alpha = dimmed ? 0.15 : 0.42;
+                const spokeAlpha = dimmed ? 0.07 : 0.14;
+                return (
+                    <g key={i}>
+                        <line x1={cx} y1={cy} x2={n.x} y2={n.y}
+                            stroke={`rgba(61,227,255,${spokeAlpha})`} strokeWidth="0.5" />
+                        <circle cx={n.x} cy={n.y} r={n.r}
+                            fill={`rgba(61,227,255,${alpha})`}>
+                            {i === activeIdx && (
+                                <animate attributeName="opacity" values="0.7;1;0.7" dur="1.5s" repeatCount="indefinite" />
+                            )}
+                        </circle>
+                    </g>
+                );
+            })}
+
+            {/* Center glow halo */}
+            <circle cx={cx} cy={cy} r={9} fill="url(#sp-center-glow)" opacity="0.45">
+                <animate attributeName="opacity" values="0.35;0.55;0.35" dur="2.2s" repeatCount="indefinite" />
+            </circle>
+
+            {/* Center node */}
+            <circle cx={cx} cy={cy} r={4} fill="rgba(9,15,28,0.92)" stroke="rgba(61,227,255,0.7)" strokeWidth="1" />
+            <circle cx={cx} cy={cy} r={2.2} fill="#3DE3FF" />
+
+            {/* Traveling node 1 — equatorial orbit */}
+            <circle r="2.3" fill="rgba(61,227,255,0.78)">
+                <animateMotion dur="4.2s" repeatCount="indefinite">
+                    <mpath href="#sp-eq-orbit" />
+                </animateMotion>
+            </circle>
+
+            {/* Traveling node 2 — equatorial orbit, half-phase offset */}
+            <circle r="1.9" fill="rgba(61,227,255,0.52)">
+                <animateMotion dur="4.2s" begin="-2.1s" repeatCount="indefinite">
+                    <mpath href="#sp-eq-orbit" />
+                </animateMotion>
+            </circle>
+
+            {/* Traveling node 3 — tilted orbit */}
+            <circle r="1.7" fill="rgba(61,227,255,0.48)">
+                <animateMotion dur="5.8s" repeatCount="indefinite">
+                    <mpath href="#sp-tilt-orbit" />
+                </animateMotion>
+            </circle>
+        </svg>
+    );
+}
+
 interface Props {
     step: number;
     stepData: TourStep;
@@ -234,6 +337,25 @@ export function GuidedTour({
                             <p style={{ fontFamily: 'monospace', fontSize: 11, lineHeight: 1.7, color: 'rgba(154,176,204,0.78)' }}>
                                 {stepData.caption}
                             </p>
+
+                            {/* Brain Sphere / Focus Mode steps — mini sphere preview */}
+                            {(stepData.id === 'brain-sphere' || stepData.id === 'focus-mode') && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.5, delay: 0.2 }}
+                                    style={{
+                                        marginTop: 10,
+                                        borderRadius: 8,
+                                        border: '1px solid rgba(61,227,255,0.1)',
+                                        background: 'rgba(61,227,255,0.03)',
+                                        padding: '6px 8px 2px',
+                                        overflow: 'hidden',
+                                    }}
+                                >
+                                    <SphereMiniPreview focusMode={stepData.id === 'focus-mode'} />
+                                </motion.div>
+                            )}
 
                             {/* Step 1 — identity: animated connection tree */}
                             {stepData.id === 'identity' && (
