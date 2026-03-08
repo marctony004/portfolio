@@ -194,6 +194,11 @@ export function GuidedTour({
                             <p style={{ fontFamily: 'monospace', fontSize: 11, lineHeight: 1.7, color: 'rgba(154,176,204,0.78)' }}>
                                 {stepData.caption}
                             </p>
+                            {stepData.subline && (
+                                <p style={{ fontFamily: 'monospace', fontSize: 10, lineHeight: 1.6, color: 'rgba(61,227,255,0.45)', marginTop: 6 }}>
+                                    {stepData.subline}
+                                </p>
+                            )}
 
                             {/* Controls row */}
                             <div className="flex items-center justify-between mt-4">
