@@ -127,13 +127,16 @@ const SuggestedPromptRow = ({ prompt, onClick }: { prompt: string; onClick: () =
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export const PortfolioAssistant = () => {
+export const PortfolioAssistant = ({ tourActive = false }: { tourActive?: boolean }) => {
     const [open, setOpen]         = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput]       = useState('');
     const [loading, setLoading]   = useState(false);
     const bottomRef               = useRef<HTMLDivElement>(null);
     const inputRef                = useRef<HTMLInputElement>(null);
+
+    // Close panel when tour starts
+    useEffect(() => { if (tourActive) setOpen(false); }, [tourActive]);
 
     // Focus input when panel opens
     useEffect(() => {
@@ -331,8 +334,9 @@ export const PortfolioAssistant = () => {
                 )}
             </AnimatePresence>
 
-            {/* ── Orb button ── */}
-            <motion.button
+            {/* ── Orb button — hidden during guided tour ── */}
+            <AnimatePresence>
+            {!tourActive && <motion.button
                 onClick={() => setOpen(o => !o)}
                 className="fixed z-[90] rounded-full flex items-center justify-center"
                 style={{
@@ -397,7 +401,8 @@ export const PortfolioAssistant = () => {
                         </motion.div>
                     )}
                 </AnimatePresence>
-            </motion.button>
+            </motion.button>}
+            </AnimatePresence>
         </>
     );
 };

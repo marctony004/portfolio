@@ -215,7 +215,7 @@ export const orbitNodes: OrbitNodeData[] = [
                     { label: 'Schedule Plan', detail: 'Scheduling engine distributes study blocks before deadlines with zero conflicts, respecting user-defined availability windows.', tools: ['Java', 'Rule Engine'] },
                     { label: 'Calendar UI', detail: 'Full JavaFX desktop interface with drag-and-drop rescheduling, smart reminders, and monthly/weekly view toggle.', tools: ['JavaFX', 'Java'] },
                 ],
-                capabilities: ['Computer Vision', 'Mobile'],
+                capabilities: ['Computer Vision', 'Full-Stack'],
                 bullets: [
                     'OCR pipeline extracts deadlines and assignments from uploaded PDFs',
                     'Rules-based engine distributes study blocks with zero scheduling conflicts',
