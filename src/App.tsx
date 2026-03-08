@@ -299,6 +299,7 @@ function App() {
                                         tourActive={isTourActive && !isUserExploring}
                                         tourSpotlightId={isTourActive && !isUserExploring ? (TOUR_STEPS[tourStep]?.targetNodeId ?? null) : null}
                                         tourHighlightNodeIds={tourHighlightNodeIds}
+                                        isTourBooting={isTourBooting}
                                     />
                                 </div>
 

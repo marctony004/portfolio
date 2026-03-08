@@ -220,7 +220,7 @@ export function GuidedTour({
                             transition={{ duration: 0.3 }}
                         >
                             <motion.p
-                                style={{ fontFamily: 'monospace', fontSize: 11, color: 'rgba(154,176,204,0.65)', marginBottom: 5 }}
+                                style={{ fontFamily: 'monospace', fontSize: 11, color: 'rgba(154,176,204,0.65)', marginBottom: 4 }}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: 0.1, duration: 0.35 }}
@@ -228,12 +228,26 @@ export function GuidedTour({
                                 Initializing system map...
                             </motion.p>
                             <motion.p
-                                style={{ fontFamily: 'monospace', fontSize: 11, color: 'rgba(154,176,204,0.65)' }}
+                                style={{ fontFamily: 'monospace', fontSize: 11, color: 'rgba(154,176,204,0.65)', marginBottom: 4 }}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
-                                transition={{ delay: 0.75, duration: 0.35 }}
+                                transition={{ delay: 0.82, duration: 0.35 }}
                             >
                                 Loading nodes...
+                            </motion.p>
+                            <motion.p
+                                style={{ fontFamily: 'monospace', fontSize: 11, color: 'rgba(61,227,255,0.45)' }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 1.35, duration: 0.35 }}
+                            >
+                                Mapping connections
+                                <motion.span
+                                    animate={{ opacity: [1, 0, 1] }}
+                                    transition={{ duration: 0.75, repeat: Infinity, ease: 'linear' }}
+                                >
+                                    _
+                                </motion.span>
                             </motion.p>
                         </motion.div>
 

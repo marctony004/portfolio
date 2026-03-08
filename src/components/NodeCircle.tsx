@@ -15,7 +15,8 @@ export interface NodeCircleProps {
     disableInternalDrift?: boolean;
     depthScale?: number;
     driftIdx: number; reduced: boolean | null;
-    isTourDimmed?: boolean; // softer dim used during guided tour (0.5 vs 0.22)
+    isTourDimmed?: boolean;      // softer dim used during guided tour (0.5 vs 0.22)
+    isBootActivating?: boolean;  // subtle glow boost during tour boot phase
     onClick: (e: React.MouseEvent) => void;
     onHover: (on: boolean) => void;
 }
@@ -24,7 +25,7 @@ export const NodeCircle = ({
     x, y, size, label, icon: Icon, isCenter, isChild,
     isActive, isDimmed, isHovered, isKbFocused, isRelatedToHover,
     expandable, isExpanded, isHinted, disableInternalDrift,
-    depthScale = 1, driftIdx, reduced, isTourDimmed = false, onClick, onHover,
+    depthScale = 1, driftIdx, reduced, isTourDimmed = false, isBootActivating = false, onClick, onHover,
 }: NodeCircleProps) => {
     const dx  = Math.sin(driftIdx * 2.31) * 3;
     const dy  = Math.cos(driftIdx * 1.73) * 3;
@@ -40,6 +41,7 @@ export const NodeCircle = ({
         : isHinted                     ? 'rgba(61,227,255,0.55)'
         : isHovered                    ? 'rgba(61,227,255,0.50)'
         : isRelatedToHover             ? `rgba(61,227,255,${fa(0.42)})`
+        : isBootActivating             ? `rgba(61,227,255,${fa(0.30)})`
         :                                `rgba(61,227,255,${fa(0.18)})`;
 
     const glow = isActive             ? '0 0 40px rgba(61,227,255,0.30)'
@@ -47,6 +49,7 @@ export const NodeCircle = ({
         : isHinted                    ? '0 0 28px rgba(61,227,255,0.22)'
         : isHovered                   ? '0 0 24px rgba(61,227,255,0.20)'
         : isRelatedToHover            ? `0 0 22px rgba(61,227,255,${fa(0.16)})`
+        : isBootActivating            ? `0 0 20px rgba(61,227,255,${fa(0.16)})`
         :                               `0 0 14px rgba(61,227,255,${fa(0.07)})`;
 
     const borderStyle = isKbFocused ? 'dashed' : 'solid';
@@ -82,6 +85,7 @@ export const NodeCircle = ({
                     background: isCenter ? 'rgba(17,26,46,0.97)' : 'rgba(17,26,46,0.88)',
                     border: `1.5px ${borderStyle} ${borderColor}`,
                     boxShadow: glow,
+                    transition: 'box-shadow 0.55s ease, border-color 0.55s ease',
                 }}
             >
                 <div className="absolute inset-[4px] rounded-full pointer-events-none"

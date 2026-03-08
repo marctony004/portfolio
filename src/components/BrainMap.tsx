@@ -46,9 +46,10 @@ interface Props {
     tourActive?: boolean;       // true while guided tour controls navigation
     tourSpotlightId?: string | null; // node the tour is currently narrating
     tourHighlightNodeIds?: string[]; // orbit node ids whose center-edge should glow briefly
+    isTourBooting?: boolean;    // true during the 1.8s boot phase before step 1
 }
 
-export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen, contracting = false, tourActive = false, tourSpotlightId = null, tourHighlightNodeIds }: Props) => {
+export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen, contracting = false, tourActive = false, tourSpotlightId = null, tourHighlightNodeIds, isTourBooting = false }: Props) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [dims, setDims]       = useState({ w: 800, h: 600 });
     const [hovered, setHovered] = useState<string | null>(null);
@@ -67,7 +68,28 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
     const [centerPulse, setCenterPulse]       = useState(false);
     const [hasInteracted, setHasInteracted]   = useState(false);
     const [pulseSourceId, setPulseSourceId]   = useState<string | null>(null);
+    const [bootRipple, setBootRipple]         = useState(false);
+    const [bootEdgePulse, setBootEdgePulse]   = useState(false);
     const reduced = useReducedMotion();
+
+    // Boot neural-activation effects
+    const prevBootingRef = useRef(false);
+    useEffect(() => {
+        if (isTourBooting && !prevBootingRef.current) {
+            prevBootingRef.current = true;
+            // Edge pulse wave fires when "Loading nodes..." text appears (~0.85s)
+            const t1 = setTimeout(() => setBootEdgePulse(true),  850);
+            const t2 = setTimeout(() => setBootEdgePulse(false), 1060);
+            return () => { clearTimeout(t1); clearTimeout(t2); };
+        }
+        if (!isTourBooting && prevBootingRef.current) {
+            prevBootingRef.current = false;
+            // Ripple fires as boot ends
+            setBootRipple(true);
+            const t = setTimeout(() => setBootRipple(false), 2200);
+            return () => clearTimeout(t);
+        }
+    }, [isTourBooting]);
 
     // Orbital physics — one x/y MotionValue pair per orbit node (hooks can't be in loops)
     const nx0 = useMotionValue(0), ny0 = useMotionValue(0);
@@ -449,7 +471,7 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
                                 drawDuration={0.78}
                                 isActive={active}
                                 isEdgeHovered={hovered === node.id}
-                                isPulsing={pulseSourceId === node.id}
+                                isPulsing={pulseSourceId === node.id || bootEdgePulse}
                                 reduced={reduced}
                                 tourHighlightEdge={!!tourHighlightNodeIds?.includes(node.id)}
                             />
@@ -557,6 +579,40 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
                     />
                 )}
 
+                {/* Boot neural-activation: strengthened center glow during boot phase */}
+                {isTourBooting && !reduced && (
+                    <motion.div
+                        className="absolute rounded-full pointer-events-none"
+                        style={{
+                            left: cx - CENTER_SIZE / 2 - 10,
+                            top:  cy - CENTER_SIZE / 2 - 10,
+                            width: CENTER_SIZE + 20,
+                            height: CENTER_SIZE + 20,
+                            border: '1px solid rgba(61,227,255,0.38)',
+                        }}
+                        initial={{ opacity: 0 }}
+                        animate={{ scale: [1, 1.08, 1, 1.08, 1], opacity: [0, 0.48, 0.18, 0.52, 0] }}
+                        transition={{ duration: 1.8, ease: 'easeInOut', times: [0, 0.22, 0.5, 0.72, 1] }}
+                    />
+                )}
+
+                {/* Boot end-ripple: expands outward from center as step 1 begins */}
+                {bootRipple && !reduced && (
+                    <motion.div
+                        className="absolute rounded-full pointer-events-none"
+                        style={{
+                            left: cx - CENTER_SIZE / 2 - 16,
+                            top:  cy - CENTER_SIZE / 2 - 16,
+                            width: CENTER_SIZE + 32,
+                            height: CENTER_SIZE + 32,
+                            border: '1px solid rgba(61,227,255,0.30)',
+                        }}
+                        initial={{ scale: 1, opacity: 0.42 }}
+                        animate={{ scale: 3.4, opacity: 0 }}
+                        transition={{ duration: 2.0, ease: [0.18, 0, 0.38, 1] }}
+                    />
+                )}
+
                 {/* Center node */}
                 <motion.div
                     style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
@@ -628,6 +684,7 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
                                 depthScale={ORBIT_DEPTHS[i]}
                                 driftIdx={i} reduced={reduced}
                                 isTourDimmed={tourActive && !!tourSpotlightId && node.id !== tourSpotlightId}
+                                isBootActivating={isTourBooting}
                                 onClick={(e) => handleNodeClick(node.id, pos.x, pos.y, node, e)}
                                 onHover={(on) => handleHover(node.id, pos.x, pos.y, node.label, node.tooltip, on)}
                             />
