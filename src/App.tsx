@@ -19,32 +19,6 @@ const BrainSphere  = lazy(() => import('./components/BrainSphere'));
 
 type SelectedNode = (OrbitNodeData | ChildNodeData) & { id: string };
 
-/** Pulsing glow ring rendered around a nav button during its tour step. */
-function HighlightRing({ active }: { active: boolean }) {
-    if (!active) return null;
-    return (
-        <motion.div
-            style={{
-                position:     'absolute',
-                inset:        -4,
-                borderRadius: 999,
-                border:       '1px solid rgba(61,227,255,0.55)',
-                pointerEvents:'none',
-                zIndex:       1,
-            }}
-            animate={{
-                boxShadow: [
-                    '0 0 0px  rgba(61,227,255,0.0)',
-                    '0 0 22px rgba(61,227,255,0.55)',
-                    '0 0 0px  rgba(61,227,255,0.0)',
-                ],
-                opacity:     [0.5, 1, 0.5],
-                borderColor: ['rgba(61,227,255,0.3)', 'rgba(61,227,255,0.75)', 'rgba(61,227,255,0.3)'],
-            }}
-            transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
-        />
-    );
-}
 
 function App() {
     const [bootDone,      setBootDone]      = useState(false);
@@ -251,6 +225,13 @@ function App() {
         }
     }, []);
 
+    // Which BrainMap orbit node edges to glow during the identity step
+    const tourHighlightNodeIds = (() => {
+        if (!isTourActive || isTourBooting || isTourComplete || isUserExploring) return undefined;
+        if (TOUR_STEPS[tourStep]?.id === 'identity') return ['leadership', 'education'];
+        return undefined;
+    })();
+
     // Which nav element to highlight during tour — null when not applicable
     const tourHighlightEl = (() => {
         if (!isTourActive || isTourBooting || isTourComplete || isUserExploring) return null;
@@ -317,6 +298,7 @@ function App() {
                                         contracting={spherePhase === 'transitioning'}
                                         tourActive={isTourActive && !isUserExploring}
                                         tourSpotlightId={isTourActive && !isUserExploring ? (TOUR_STEPS[tourStep]?.targetNodeId ?? null) : null}
+                                        tourHighlightNodeIds={tourHighlightNodeIds}
                                     />
                                 </div>
 
@@ -330,59 +312,75 @@ function App() {
                                 {/* Top-left nav cluster */}
                                 <div className="fixed top-4 left-4 z-50 flex flex-col gap-2">
                                     {/* Recruiter View */}
-                                    <div style={{ position: 'relative' }}>
-                                        <HighlightRing active={tourHighlightEl === 'recruiter'} />
-                                        <motion.button
-                                            onClick={() => setRecruiterMode(true)}
-                                            className="flex items-center gap-1.5 font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full"
-                                            style={{
-                                                background: 'rgba(11,18,32,0.85)',
-                                                border: '1px solid rgba(61,227,255,0.15)',
-                                                backdropFilter: 'blur(10px)',
-                                                color: 'rgba(154,176,204,0.6)',
-                                            }}
-                                            animate={tourHighlightEl === 'recruiter' ? { scale: 1.06 } : { scale: 1 }}
-                                            whileHover={{
-                                                color: '#3DE3FF',
-                                                borderColor: 'rgba(61,227,255,0.5)',
-                                                boxShadow: '0 0 18px rgba(61,227,255,0.18)',
-                                            }}
-                                            transition={{ duration: 0.18 }}
-                                        >
-                                            <span style={{ color: '#3DE3FF', fontSize: 11 }}>⊞</span> Recruiter View
-                                        </motion.button>
-                                    </div>
+                                    <motion.button
+                                        onClick={() => setRecruiterMode(true)}
+                                        className="flex items-center gap-1.5 font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full"
+                                        style={{
+                                            background: 'rgba(11,18,32,0.85)',
+                                            border: '1px solid rgba(61,227,255,0.15)',
+                                            backdropFilter: 'blur(10px)',
+                                            color: 'rgba(154,176,204,0.6)',
+                                        }}
+                                        animate={tourHighlightEl === 'recruiter' ? {
+                                            boxShadow: [
+                                                '0 0 0px rgba(61,227,255,0.0)',
+                                                '0 0 20px rgba(61,227,255,0.5)',
+                                                '0 0 0px rgba(61,227,255,0.0)',
+                                            ],
+                                        } : {}}
+                                        whileHover={{
+                                            color: '#3DE3FF',
+                                            borderColor: 'rgba(61,227,255,0.5)',
+                                            boxShadow: '0 0 18px rgba(61,227,255,0.18)',
+                                        }}
+                                        transition={{
+                                            boxShadow: tourHighlightEl === 'recruiter'
+                                                ? { duration: 1.4, repeat: Infinity, ease: 'easeInOut' }
+                                                : { duration: 0.18 },
+                                            default: { duration: 0.18 },
+                                        }}
+                                    >
+                                        <span style={{ color: '#3DE3FF', fontSize: 11 }}>⊞</span> Recruiter View
+                                    </motion.button>
 
                                     {/* Brain Sphere */}
-                                    <div style={{ position: 'relative' }}>
-                                        <HighlightRing active={tourHighlightEl === 'sphere'} />
-                                        <motion.button
-                                            onClick={() => {
-                                                if (spherePhase !== 'off') return;
-                                                if (sphereTimerRef.current) clearTimeout(sphereTimerRef.current);
-                                                const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-                                                if (reduced) { setSpherePhase('on'); return; }
-                                                setSpherePhase('transitioning');
-                                                sphereTimerRef.current = setTimeout(() => setSpherePhase('on'), 3000);
-                                            }}
-                                            className="flex items-center gap-1.5 font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full"
-                                            style={{
-                                                background: 'rgba(11,18,32,0.85)',
-                                                border: '1px solid rgba(61,227,255,0.15)',
-                                                backdropFilter: 'blur(10px)',
-                                                color: 'rgba(154,176,204,0.6)',
-                                            }}
-                                            animate={tourHighlightEl === 'sphere' ? { scale: 1.06 } : { scale: 1 }}
-                                            whileHover={{
-                                                color: '#3DE3FF',
-                                                borderColor: 'rgba(61,227,255,0.5)',
-                                                boxShadow: '0 0 18px rgba(61,227,255,0.18)',
-                                            }}
-                                            transition={{ duration: 0.18 }}
-                                        >
-                                            <span style={{ color: '#3DE3FF', fontSize: 11 }}>◉</span> Brain Sphere
-                                        </motion.button>
-                                    </div>
+                                    <motion.button
+                                        onClick={() => {
+                                            if (spherePhase !== 'off') return;
+                                            if (sphereTimerRef.current) clearTimeout(sphereTimerRef.current);
+                                            const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                                            if (reduced) { setSpherePhase('on'); return; }
+                                            setSpherePhase('transitioning');
+                                            sphereTimerRef.current = setTimeout(() => setSpherePhase('on'), 3000);
+                                        }}
+                                        className="flex items-center gap-1.5 font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full"
+                                        style={{
+                                            background: 'rgba(11,18,32,0.85)',
+                                            border: '1px solid rgba(61,227,255,0.15)',
+                                            backdropFilter: 'blur(10px)',
+                                            color: 'rgba(154,176,204,0.6)',
+                                        }}
+                                        animate={tourHighlightEl === 'sphere' ? {
+                                            boxShadow: [
+                                                '0 0 0px rgba(61,227,255,0.0)',
+                                                '0 0 20px rgba(61,227,255,0.5)',
+                                                '0 0 0px rgba(61,227,255,0.0)',
+                                            ],
+                                        } : {}}
+                                        whileHover={{
+                                            color: '#3DE3FF',
+                                            borderColor: 'rgba(61,227,255,0.5)',
+                                            boxShadow: '0 0 18px rgba(61,227,255,0.18)',
+                                        }}
+                                        transition={{
+                                            boxShadow: tourHighlightEl === 'sphere'
+                                                ? { duration: 1.4, repeat: Infinity, ease: 'easeInOut' }
+                                                : { duration: 0.18 },
+                                            default: { duration: 0.18 },
+                                        }}
+                                    >
+                                        <span style={{ color: '#3DE3FF', fontSize: 11 }}>◉</span> Brain Sphere
+                                    </motion.button>
 
                                     {/* Guided tour */}
                                     {!isTourActive && (

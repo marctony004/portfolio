@@ -45,9 +45,10 @@ interface Props {
     contracting?: boolean;      // true during the BrainSphere morph transition
     tourActive?: boolean;       // true while guided tour controls navigation
     tourSpotlightId?: string | null; // node the tour is currently narrating
+    tourHighlightNodeIds?: string[]; // orbit node ids whose center-edge should glow briefly
 }
 
-export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen, contracting = false, tourActive = false, tourSpotlightId = null }: Props) => {
+export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen, contracting = false, tourActive = false, tourSpotlightId = null, tourHighlightNodeIds }: Props) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [dims, setDims]       = useState({ w: 800, h: 600 });
     const [hovered, setHovered] = useState<string | null>(null);
@@ -450,6 +451,7 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
                                 isEdgeHovered={hovered === node.id}
                                 isPulsing={pulseSourceId === node.id}
                                 reduced={reduced}
+                                tourHighlightEdge={!!tourHighlightNodeIds?.includes(node.id)}
                             />
                         );
                     })}

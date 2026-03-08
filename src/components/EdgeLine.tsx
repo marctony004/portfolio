@@ -12,11 +12,12 @@ export interface EdgeLineProps {
     isEdgeHovered: boolean;
     isPulsing: boolean;
     reduced: boolean | null;
+    tourHighlightEdge?: boolean; // briefly glow this edge during the identity tour step
 }
 
 export const EdgeLine = memo(({
     x1, y1, x2, y2, type, drawDelay, drawDuration,
-    isActive, isEdgeHovered, isPulsing, reduced,
+    isActive, isEdgeHovered, isPulsing, reduced, tourHighlightEdge = false,
 }: EdgeLineProps) => {
     const [pulseKey, setPulseKey] = useState(0);
     const prevPulse = useRef(false);
@@ -76,6 +77,21 @@ export const EdgeLine = memo(({
                     ? { cx: [x1, x2], cy: [y1, y2], opacity: [0, 0.65, 0.55, 0] }
                     : { opacity: 0, cx: x1, cy: y1 }}
                 transition={{ duration: 1.25, ease: [0.25, 0.1, 0.6, 1], times: [0, 0.15, 0.78, 1] }}
+            />
+
+            {/* Tour identity highlight — glows then fades when this edge is spotlighted */}
+            <motion.path
+                key={tourHighlightEdge ? 'hl-on' : 'hl-off'}
+                d={d}
+                fill="none"
+                stroke="#3DE3FF"
+                strokeWidth={2.4}
+                strokeLinecap="round"
+                initial={{ opacity: 0 }}
+                animate={tourHighlightEdge ? { opacity: [0, 0.75, 0.75, 0] } : { opacity: 0 }}
+                transition={tourHighlightEdge
+                    ? { duration: 5.5, times: [0, 0.09, 0.65, 1], ease: 'easeInOut' }
+                    : { duration: 0.3 }}
             />
         </g>
     );
