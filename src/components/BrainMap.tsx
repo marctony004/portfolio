@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence, useReducedMotion, useMotionValue, useAnimationFrame } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion, useMotionValue, useAnimationFrame, useAnimation } from 'framer-motion';
 import { orbitNodes, currentStatus, type Capability } from '../data/brainData';
 import type { OrbitNodeData, ChildNodeData } from '../data/brainData';
 import { CapabilityChips } from './CapabilityChips';
@@ -53,7 +53,12 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
     const [hovered, setHovered] = useState<string | null>(null);
     const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string; tip: string } | null>(null);
     const [expanded, setExpanded]   = useState(false);
-    const [camera, setCamera]       = useState({ x: 0, y: 0, scale: 1 });
+    const cameraControls = useAnimation();
+    // Tracks the settled camera position so arc animations know where to start from
+    const cameraRef      = useRef({ x: 0, y: 0, scale: 1 });
+    // Mirrors tourActive prop for use inside stable callbacks
+    const tourActiveRef  = useRef(tourActive);
+    useEffect(() => { tourActiveRef.current = tourActive; }, [tourActive]);
     const [activeFilter, setActiveFilter] = useState<Capability | null>(null);
     const [kbFocus, setKbFocus]     = useState<string | null>(null);
     const [showHint, setShowHint]             = useState(false);
@@ -147,8 +152,24 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
     }, []);
 
     useEffect(() => {
-        if (selectedId === null) setCamera({ x: 0, y: 0, scale: 1 });
-    }, [selectedId]);
+        if (selectedId === null) {
+            cameraRef.current = { x: 0, y: 0, scale: 1 };
+            cameraControls.start({ x: 0, y: 0, scale: 1, opacity: 1,
+                transition: { duration: 0.65, ease: [0.25, 0.46, 0.45, 0.94] } });
+        }
+    }, [selectedId, cameraControls]);
+
+    // Contracting (BrainSphere morph) — fire animation imperatively so we can restore after
+    useEffect(() => {
+        if (contracting) {
+            cameraControls.start({ x: 0, y: 0, scale: 0.35, opacity: 0,
+                transition: { duration: 0.90, ease: [0.55, 0, 1, 0.45] } });
+        } else {
+            const c = cameraRef.current;
+            cameraControls.start({ x: c.x, y: c.y, scale: c.scale, opacity: 1,
+                transition: { duration: 0.55, ease: [0.25, 0.46, 0.45, 0.94] } });
+        }
+    }, [contracting, cameraControls]);
 
     const cx = dims.w * 0.5;
     const cy = dims.h * 0.5;
@@ -229,11 +250,47 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
     useEffect(() => { expandedRef.current = expanded; },  [expanded]);
     useEffect(() => { allNodesRef.current = allNodes; },  [allNodes]);
 
-    const moveCamera = useCallback((nx: number, ny: number) => {
-        const dx = (nx - cx) * 0.12;
-        const dy = (ny - cy) * 0.12;
-        setCamera({ x: -dx, y: -dy, scale: 1.04 });
-    }, [cx, cy]);
+    const moveCamera = useCallback((nx: number, ny: number, cinematic = false) => {
+        const dx      = (nx - cx) * 0.12;
+        const dy      = (ny - cy) * 0.12;
+        const targetX = -dx;
+        const targetY = -dy;
+        const targetScale = cinematic ? 1.03 : 1.04;
+
+        if (cinematic && !reduced) {
+            // Arc path: find the perpendicular offset at the travel midpoint
+            const prev     = cameraRef.current;
+            const travelX  = targetX - prev.x;
+            const travelY  = targetY - prev.y;
+            const len      = Math.hypot(travelX, travelY);
+            // Perpendicular (CCW 90°), scaled to 28% of travel distance, capped at 22px
+            const arcAmt   = Math.min(len * 0.28, 22);
+            const perpX    = len > 0 ? (-travelY / len) * arcAmt : 0;
+            const perpY    = len > 0 ? ( travelX / len) * arcAmt : 0;
+            const arcX     = (prev.x + targetX) / 2 + perpX;
+            const arcY     = (prev.y + targetY) / 2 + perpY;
+
+            cameraControls.start({
+                x:     [prev.x,     arcX,   targetX],
+                y:     [prev.y,     arcY,   targetY],
+                scale: [prev.scale, 1.06,   targetScale],
+                opacity: 1,
+                transition: {
+                    duration: 1.1,
+                    ease: [0.45, 0.05, 0.25, 1.0], // easeInOutQuart feel
+                    times: [0, 0.42, 1],
+                },
+            });
+        } else {
+            cameraControls.start({
+                x: targetX, y: targetY,
+                scale: targetScale, opacity: 1,
+                transition: { duration: 0.60, ease: [0.25, 0.46, 0.45, 0.94] },
+            });
+        }
+
+        cameraRef.current = { x: targetX, y: targetY, scale: targetScale };
+    }, [cx, cy, reduced, cameraControls]);
 
     // Keyboard navigation
     useEffect(() => {
@@ -275,7 +332,7 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
         if (!entry) return;
         const isChild = PROJECTS_CHILDREN.some(c => c.id === jumpTo);
         if (isChild) setExpanded(true);
-        moveCamera(entry.x, entry.y);
+        moveCamera(entry.x, entry.y, tourActiveRef.current);
         setTimeout(() => {
             onSelectRef.current({ ...entry.data, id: jumpTo } as SelectedNode);
             onJumpDoneRef.current?.();
@@ -296,7 +353,7 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
     const handleBgClick = () => {
         if (tourActive) return; // tour controls navigation; ignore bg clicks
         onSelect(null);
-        setCamera({ x: 0, y: 0, scale: 1 });
+        // camera resets via the selectedId === null effect above
         setExpanded(false);
         setKbFocus(null);
     };
@@ -352,19 +409,10 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
                 )}
             </AnimatePresence>
 
-            {/* Camera wrapper */}
+            {/* Camera wrapper — transitions fired imperatively via cameraControls */}
             <motion.div
                 className="absolute inset-0"
-                animate={
-                    contracting
-                        ? { x: 0, y: 0, scale: 0.35, opacity: 0 }
-                        : { x: camera.x, y: camera.y, scale: camera.scale, opacity: 1 }
-                }
-                transition={
-                    contracting
-                        ? { duration: 0.90, ease: [0.55, 0, 1, 0.45] }
-                        : { duration: 0.60, ease: [0.25, 0.46, 0.45, 0.94] }
-                }
+                animate={cameraControls}
                 style={{ transformOrigin: 'center' }}
             >
                 <svg className="absolute inset-0 pointer-events-none overflow-visible" width={dims.w} height={dims.h}>
@@ -553,7 +601,7 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
                         isActive={!selectedId} isDimmed={false} isHovered={hovered === 'center'}
                         disableInternalDrift
                         driftIdx={-1} reduced={reduced}
-                        onClick={(e) => { e.stopPropagation(); onSelect(null); setCamera({ x: 0, y: 0, scale: 1 }); setKbFocus(null); }}
+                        onClick={(e) => { e.stopPropagation(); onSelect(null); setKbFocus(null); }}
                         onHover={(on) => handleHover('center', cx, cy, 'Marc Smith', 'AI/ML Engineer & Full-Stack Developer', on)}
                     />
                 </motion.div>
@@ -638,8 +686,8 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
                 {tooltip && hovered && (
                     <Tooltip
                         key={hovered}
-                        x={tooltip.x + camera.x}
-                        y={tooltip.y + camera.y}
+                        x={tooltip.x + cameraRef.current.x}
+                        y={tooltip.y + cameraRef.current.y}
                         label={tooltip.label}
                         tip={tooltip.tip}
                         containerW={dims.w}
