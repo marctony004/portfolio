@@ -212,13 +212,137 @@ function mulberry32(seed: number) {
     return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 }
 
+// Precompute icosahedron wireframe edges once — sparks travel along these lines
+const GLOBE_EDGE_PAIRS: [[number,number,number],[number,number,number]][] = (() => {
+    const base = new THREE.IcosahedronGeometry(2.5, 3);
+    const eg   = new THREE.EdgesGeometry(base);
+    const pos  = eg.attributes.position;
+    const out: [[number,number,number],[number,number,number]][] = [];
+    for (let i = 0; i < pos.count; i += 2) {
+        out.push([
+            [pos.getX(i),   pos.getY(i),   pos.getZ(i)  ],
+            [pos.getX(i+1), pos.getY(i+1), pos.getZ(i+1)],
+        ]);
+    }
+    base.dispose();
+    eg.dispose();
+    return out;
+})();
+
+// Pool size — sparks reuse these mesh slots; no React state or re-renders needed
+const BUZZ_POOL = 5;
+
+interface BuzzSlot {
+    from: [number,number,number];
+    to:   [number,number,number];
+    start:    number;
+    duration: number;
+}
+
+function GlobeElectricBuzz() {
+    const meshes  = useRef<(THREE.Mesh | null)[]>(Array(BUZZ_POOL).fill(null));
+    const mats    = useRef<(THREE.MeshBasicMaterial | null)[]>(Array(BUZZ_POOL).fill(null));
+    const slots   = useRef<(BuzzSlot | null)[]>(Array(BUZZ_POOL).fill(null));
+    const nextFire = useRef(performance.now() + 800 + Math.random() * 1800);
+    const slotIdx  = useRef(0);
+
+    useFrame(() => {
+        if (PREFERS_REDUCED) return;
+        const now = performance.now();
+
+        // Update every active slot imperatively — no setState, no re-renders
+        for (let i = 0; i < BUZZ_POOL; i++) {
+            const slot = slots.current[i];
+            const mesh = meshes.current[i];
+            const mat  = mats.current[i];
+            if (!mesh || !mat) continue;
+            if (!slot) { mat.opacity = 0; continue; }
+
+            const elapsed = now - slot.start;
+            if (elapsed < 0) { mat.opacity = 0; continue; }
+
+            const t = Math.min(1, elapsed / slot.duration);
+            if (t >= 1) { mat.opacity = 0; slots.current[i] = null; continue; }
+
+            const ease = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2) / 2;
+            const [ax, ay, az] = slot.from;
+            const [bx, by, bz] = slot.to;
+            mesh.position.set(ax + (bx-ax)*ease, ay + (by-ay)*ease, az + (bz-az)*ease);
+
+            // Sharp electric flash: fast spike (0→10%), plateau (10→25%), smooth decay
+            const flash = t < 0.10 ? t / 0.10
+                        : t < 0.25 ? 1.0
+                        : Math.pow(1 - (t - 0.25) / 0.75, 1.8);
+            mat.opacity = flash * 0.22;
+        }
+
+        // Spawn burst when timer fires
+        if (now < nextFire.current) return;
+        nextFire.current = now + 2200 + Math.random() * 3000;
+
+        // 25% chance: double burst on two different edges in quick succession
+        const burstCount = Math.random() < 0.25 ? 2 : 1;
+        for (let b = 0; b < burstCount; b++) {
+            const si   = slotIdx.current++ % BUZZ_POOL;
+            const edge = GLOBE_EDGE_PAIRS[Math.floor(Math.random() * GLOBE_EDGE_PAIRS.length)];
+            slots.current[si] = {
+                from:     edge[0],
+                to:       edge[1],
+                start:    now + b * 90,
+                duration: 200 + Math.random() * 300,
+            };
+        }
+    });
+
+    return (
+        <>
+            {Array.from({ length: BUZZ_POOL }, (_, i) => (
+                <mesh key={i} ref={(el: THREE.Mesh | null) => { meshes.current[i] = el; }}>
+                    <sphereGeometry args={[0.020, 6, 6]} />
+                    <meshBasicMaterial
+                        ref={(el: THREE.MeshBasicMaterial | null) => { mats.current[i] = el; }}
+                        color="#7EEDFF"
+                        transparent
+                        opacity={0}
+                        depthWrite={false}
+                    />
+                </mesh>
+            ))}
+        </>
+    );
+}
+
 export function SphereScene({ nodes, edges, selectedId, expandedId, onSelect, camRef, focusedNodeIdRef, hasDraggedRef, idleRotate, waveTimeRef, waveActive, waveDelays, idlePulse, idleGlowTimes, onIdlePulseComplete }: Props) {
     const frameRef = useRef(0);
 
-    // Visible nodes: top-level only, plus constellation children when a parent is expanded.
-    // Children get dynamically computed positions so they cluster around their parent.
+    // Visible nodes: progressive disclosure model.
+    //   Base layer:   center + orbit nodes — always visible.
+    //   Contextual:   capability nodes appear only when a related node is selected.
+    //   Constellation: project/tool children appear when their parent is expanded.
     const visibleNodes = useMemo((): SphereNodeData[] => {
-        const topLevel = nodes.filter(n => !n.parentId);
+        // Always-visible top-level: center + orbit (non-capability, no parentId)
+        const base = nodes.filter(n => !n.parentId && n.nodeType !== 'capability');
+
+        // Capability nodes are revealed contextually — when the selected node is in their relatedIds,
+        // or when the capability itself is the selected node.
+        const contextualCaps = selectedId
+            ? nodes.filter(n =>
+                n.nodeType === 'capability' &&
+                (n.id === selectedId || n.relatedIds.includes(selectedId))
+              )
+            : [];
+
+        // Overview mode: center node selected — spread all projects at their pre-placed
+        // overviewPositions across the sphere (bypasses constellation clustering).
+        if (selectedId === 'marc-smith') {
+            const overviewProjects = nodes
+                .filter(n => n.nodeType === 'project' && n.overviewPosition)
+                .map(n => ({ ...n, position: n.overviewPosition! }));
+            const allCaps = nodes.filter(n => n.nodeType === 'capability');
+            return [...base, ...overviewProjects, ...allCaps];
+        }
+
+        const topLevel = [...base, ...contextualCaps];
         if (!expandedId) return topLevel;
 
         const parent = nodes.find(n => n.id === expandedId);
@@ -231,7 +355,7 @@ export function SphereScene({ nodes, edges, selectedId, expandedId, onSelect, ca
             ...topLevel,
             ...children.map((child, i) => ({ ...child, position: cPositions[i] })),
         ];
-    }, [nodes, expandedId]);
+    }, [nodes, expandedId, selectedId]);
 
     // Position lookup for visible nodes — used by activePath
     const visiblePosMap = useMemo(() => {
@@ -323,24 +447,39 @@ export function SphereScene({ nodes, edges, selectedId, expandedId, onSelect, ca
             {/* Globe shell */}
             <GlobeShell active={!!selectedId} />
 
+            {/* Electric buzz — faint sparks that travel along the icosahedron wireframe */}
+            <GlobeElectricBuzz />
+
             {/* Edges — nodeMap built from visibleNodes so hidden children auto-drop */}
             <SphereEdges nodes={visibleNodes} edges={edges} selectedId={selectedId} activePathKeys={activePath.keys} activeEdges={activePath.edges} />
 
             {/* Nodes */}
-            {(() => {
-                // Precompute selected node's parentId once so the map below is O(n)
-                const selParentId = selectedId
-                    ? visibleNodes.find(n => n.id === selectedId)?.parentId
-                    : undefined;
+            {visibleNodes.map(node => {
+                    // Dim logic — two triggers:
+                    // 1. A specific node is selected → dim everything not directly related to it.
+                    //    Bidirectional: a node stays bright if it lists the selected node OR
+                    //    if the selected node lists it (covers project → capability edges).
+                    // 2. A constellation is expanded but no child selected (e.g. 'projects' orbit) →
+                    //    dim everything outside that parent's cluster.
+                    const dimmed = (() => {
+                        if (node.nodeType === 'center') return false;
+                        if (selectedId === 'marc-smith') return false; // overview — nothing dims
 
-                return visibleNodes.map(node => {
-                    const dimmed =
-                        !!selectedId
-                        && selectedId !== node.id
-                        && node.nodeType !== 'center'            // center is never dimmed
-                        && !node.relatedIds.includes(selectedId)  // directly related → keep bright
-                        && !(selParentId && node.parentId === selParentId) // constellation siblings stay bright
-                        && !activePathNodeIds.has(node.id);      // path nodes stay lit like the wire
+                        if (selectedId) {
+                            const selNode = nodes.find(n => n.id === selectedId);
+                            return selectedId !== node.id
+                                && !node.relatedIds.includes(selectedId)
+                                && !selNode?.relatedIds.includes(node.id)
+                                && !activePathNodeIds.has(node.id);
+                        }
+
+                        if (expandedId) {
+                            return node.id !== expandedId          // the expanded parent stays bright
+                                && node.parentId !== expandedId;   // its children stay bright
+                        }
+
+                        return false;
+                    })();
 
                     return (
                         <SphereNode
@@ -357,8 +496,7 @@ export function SphereScene({ nodes, edges, selectedId, expandedId, onSelect, ca
                             idleGlowAt={idleGlowTimes?.get(node.id) ?? null}
                         />
                     );
-                });
-            })()}
+            })}
 
             {/* Idle neural pulse — single faint orb traveling a random edge, all state managed outside Canvas */}
             {idlePulse && (

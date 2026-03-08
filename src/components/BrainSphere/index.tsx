@@ -191,6 +191,20 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
         resetIdleTimer();
         lastSelectedIdRef.current = id;
 
+        // Center node — toggle "reveal all" overview mode:
+        // first click expands project constellation + all capabilities appear;
+        // second click collapses everything back to the clean sphere.
+        if (id === 'marc-smith') {
+            if (selectedId === 'marc-smith') {
+                setSelectedId(null);
+                setExpandedId(null);
+            } else {
+                setSelectedId('marc-smith');
+                setExpandedId(null); // projects spread via overviewPosition, not constellation
+            }
+            return;
+        }
+
         if (EXPANDABLE_IDS.has(id)) {
             // Expandable parent node
             if (expandedId === id) {
@@ -199,8 +213,13 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
                 setSelectedId(null);
             } else {
                 setExpandedId(id);
-                setSelectedId(id);
+                // Orbit node (e.g. 'projects'): expand constellation but skip the inspector —
+                // the panel opens when the user clicks a specific child node instead.
+                // Capability nodes: open inspector alongside the tool ring.
+                setSelectedId(node.nodeType === 'capability' ? id : null);
                 focusOnNode(id);
+                // Pull back slightly so the constellation ring has viewport breathing room
+                if (node.nodeType === 'orbit') camRef.current.targetDistance = 6.2;
             }
         } else if (node.parentId) {
             // Child node inside an open constellation — open inspector, keep cluster
@@ -421,7 +440,7 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
                     node={selectedNode}
                     onClose={() => setSelectedId(null)}
                     onEnterFocus={
-                        selectedNode?.nodeType === 'child'
+                        selectedNode?.nodeType === 'project'
                             ? () => handleEnterFocusMode(selectedNode.id)
                             : undefined
                     }

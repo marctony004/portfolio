@@ -7,15 +7,19 @@ import type { SphereNodeData } from '../../data/sphereGraph';
 const PREFERS_REDUCED = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const NODE_RADIUS: Record<SphereNodeData['nodeType'], number> = {
-    center: 0.18,
-    orbit:  0.11,
-    child:  0.075,
+    center:     0.18,
+    orbit:      0.11,
+    project:    0.085,  // dominant — larger than capability per prompt
+    capability: 0.068,  // intermediate connector
+    tool:       0.050,  // peripheral / smallest
 };
 
 const BASE_COLOR: Record<SphereNodeData['nodeType'], string> = {
-    center: '#3DE3FF',
-    orbit:  '#3DE3FF',
-    child:  '#9AB0CC',
+    center:     '#3DE3FF',
+    orbit:      '#3DE3FF',
+    project:    '#9AB0CC',
+    capability: '#7EC8E3', // softer cyan — distinct from orbit but same family
+    tool:       '#6BADCF', // muted blue — clearly subordinate
 };
 
 interface Props {
@@ -55,8 +59,11 @@ export function SphereNode({ node, isSelected, isFocused, isDimmed, onSelect, ha
     const r     = NODE_RADIUS[node.nodeType];
     const color = BASE_COLOR[node.nodeType];
 
-    // Child nodes fade in from 0 on mount; all others start fully visible.
-    const appearRef = useRef(node.nodeType === 'child' ? 0 : 1);
+    // Project, capability, and tool nodes fade in from 0 on mount.
+    // Capability nodes mount/unmount contextually, so they always fade in on reveal.
+    const appearRef = useRef(
+        node.nodeType === 'project' || node.nodeType === 'capability' || node.nodeType === 'tool' ? 0 : 1
+    );
 
     // Mirror reactive values so useFrame always reads fresh state
     const stateRef = useRef({ isSelected, hovered, isFocused, isDimmed, isOnActivePath, idleGlowAt });
@@ -81,7 +88,7 @@ export function SphereNode({ node, isSelected, isFocused, isDimmed, onSelect, ha
         // Ambient hum — tiny organic drift on inner group; outer group position
         // is managed by JSX prop, inner group has no position prop so reconciler
         // never interferes with our imperatively-set offsets.
-        if (humGroupRef.current && node.nodeType !== 'center' && !PREFERS_REDUCED) {
+        if (humGroupRef.current && node.nodeType !== 'center' && !PREFERS_REDUCED) { // all non-center nodes get ambient hum
             const h = humRef.current;
             const t = performance.now() * 0.001 + h.t0;
             humGroupRef.current.position.set(
@@ -195,12 +202,12 @@ export function SphereNode({ node, isSelected, isFocused, isDimmed, onSelect, ha
             <Html
                 position={[0, r * (node.nodeType === 'center' ? 2.2 : 2), 0]}
                 center
-                distanceFactor={node.nodeType === 'center' ? 8 : 10}
+                distanceFactor={node.nodeType === 'center' ? 8 : node.nodeType === 'tool' ? 11 : 10}
                 style={{ pointerEvents: 'none', userSelect: 'none' }}
             >
                 <div style={{
                     fontFamily: 'monospace',
-                    fontSize: node.nodeType === 'center' ? 13 : 10,
+                    fontSize: node.nodeType === 'center' ? 13 : node.nodeType === 'tool' ? 9 : 10,
                     fontWeight: node.nodeType === 'center' ? 600 : 400,
                     color: isSelected ? '#3DE3FF' : hovered ? '#E6EEF9' : isDimmed ? 'rgba(154,176,204,0.22)' : '#9AB0CC',
                     background: 'rgba(11,18,32,0.82)',

@@ -11,9 +11,11 @@ interface Props {
 }
 
 const NODE_TYPE_LABEL: Record<SphereNodeData['nodeType'], string> = {
-    center: 'Identity',
-    orbit:  'Domain',
-    child:  'Project',
+    center:     'Identity',
+    orbit:      'Domain',
+    project:    'Project',
+    capability: 'Capability',
+    tool:       'Tool',
 };
 
 const linkBtn =
@@ -27,7 +29,7 @@ const linkHover  = (e: React.MouseEvent<HTMLAnchorElement>) => { e.currentTarget
 const linkUnhover = (e: React.MouseEvent<HTMLAnchorElement>) => { e.currentTarget.style.color = MUTED; e.currentTarget.style.borderColor = 'rgba(61,227,255,0.14)'; };
 
 export function SphereInspector({ node, onClose, onEnterFocus, relatedLabels }: Props) {
-    const isProject = node?.nodeType === 'child';
+    const isProject = node?.nodeType === 'project';
 
     return (
         <AnimatePresence>
