@@ -127,7 +127,7 @@ const SuggestedPromptRow = ({ prompt, onClick }: { prompt: string; onClick: () =
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export const PortfolioAssistant = ({ tourActive = false }: { tourActive?: boolean }) => {
+export const PortfolioAssistant = ({ tourActive = false, tourHighlightAssistant = false }: { tourActive?: boolean; tourHighlightAssistant?: boolean }) => {
     const [open, setOpen]         = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput]       = useState('');
@@ -334,9 +334,9 @@ export const PortfolioAssistant = ({ tourActive = false }: { tourActive?: boolea
                 )}
             </AnimatePresence>
 
-            {/* ── Orb button — hidden during guided tour ── */}
+            {/* ── Orb button — hidden during tour except when it's the highlighted step ── */}
             <AnimatePresence>
-            {!tourActive && <motion.button
+            {(!tourActive || tourHighlightAssistant) && <motion.button
                 onClick={() => setOpen(o => !o)}
                 className="fixed z-[90] rounded-full flex items-center justify-center"
                 style={{
@@ -350,7 +350,16 @@ export const PortfolioAssistant = ({ tourActive = false }: { tourActive?: boolea
                         ? '0 0 32px rgba(61,227,255,0.2), 0 8px 24px rgba(0,0,0,0.5)'
                         : '0 0 0px rgba(61,227,255,0), 0 6px 20px rgba(0,0,0,0.4)',
                 }}
-                animate={!open ? {
+                animate={tourHighlightAssistant ? {
+                    // Strong pulsing highlight during tour step
+                    boxShadow: [
+                        '0 0 0px  rgba(61,227,255,0.0), 0 6px 20px rgba(0,0,0,0.4)',
+                        '0 0 30px rgba(61,227,255,0.6), 0 6px 20px rgba(0,0,0,0.4)',
+                        '0 0 0px  rgba(61,227,255,0.0), 0 6px 20px rgba(0,0,0,0.4)',
+                    ],
+                    borderColor: ['rgba(61,227,255,0.3)', 'rgba(61,227,255,0.85)', 'rgba(61,227,255,0.3)'],
+                    scale: [1, 1.08, 1],
+                } : !open ? {
                     boxShadow: [
                         '0 0 0px rgba(61,227,255,0.0), 0 6px 20px rgba(0,0,0,0.4)',
                         '0 0 20px rgba(61,227,255,0.15), 0 6px 20px rgba(0,0,0,0.4)',
@@ -362,7 +371,11 @@ export const PortfolioAssistant = ({ tourActive = false }: { tourActive?: boolea
                         'rgba(61,227,255,0.18)',
                     ],
                 } : {}}
-                transition={!open ? {
+                transition={tourHighlightAssistant ? {
+                    duration: 1.4,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                } : !open ? {
                     duration: 3.8,
                     repeat: Infinity,
                     ease: 'easeInOut',
