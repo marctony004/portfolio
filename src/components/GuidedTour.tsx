@@ -34,8 +34,8 @@ export function GuidedTour({
 
     return (
         <motion.div
-            className="fixed bottom-6 z-[90]"
-            style={{ left: '50%', x: '-50%', width: 'min(520px, calc(100vw - 32px))' }}
+            className="fixed bottom-6 left-4 z-[90]"
+            style={{ width: 'min(400px, calc(100vw - 32px))' }}
             initial={{ opacity: 0, y: 28 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 28 }}

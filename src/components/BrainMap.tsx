@@ -256,10 +256,7 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
         const targetScale = cinematic ? 1.18 : 1.04;
 
         const targetX = -(nx - cx) * panFactor;
-        // Lift the camera when a bottom node is spotlighted so it clears the tour panel.
-        // Scale 1.18 amplifies perceived position, so we need a larger offset.
-        const yBias   = cinematic && ny > cy ? -130 : 0;
-        const targetY = -(ny - cy) * panFactor + yBias;
+        const targetY = -(ny - cy) * panFactor;
 
         // Always animate as flat targets so Framer Motion interpolates from its
         // current rendered position — no keyframe snapping, no bounce.
