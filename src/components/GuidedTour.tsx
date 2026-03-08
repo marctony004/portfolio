@@ -5,6 +5,7 @@ interface Props {
     step: number;
     stepData: TourStep;
     isPaused: boolean;
+    isBooting: boolean;
     isUserExploring: boolean;
     isComplete: boolean;
     onNext: () => void;
@@ -26,7 +27,7 @@ const BTN_BASE: React.CSSProperties = {
 };
 
 export function GuidedTour({
-    step, stepData, isPaused, isUserExploring, isComplete,
+    step, stepData, isPaused, isBooting, isUserExploring, isComplete,
     onNext, onBack, onPause, onResume, onExit, onReplay,
 }: Props) {
     const total      = TOUR_STEPS.length;
@@ -55,7 +56,14 @@ export function GuidedTour({
                 {/* ── Header ── */}
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                        <span style={{ color: '#3DE3FF', fontSize: 9 }}>◉</span>
+                        {/* Pulsing dot — more active during boot */}
+                        <motion.span
+                            style={{ color: '#3DE3FF', fontSize: 9, display: 'inline-block' }}
+                            animate={isBooting ? { opacity: [1, 0.3, 1] } : { opacity: 1 }}
+                            transition={isBooting ? { duration: 0.8, repeat: Infinity } : {}}
+                        >
+                            ◉
+                        </motion.span>
                         <span style={{
                             fontFamily: 'monospace',
                             fontSize: 9,
@@ -67,11 +75,13 @@ export function GuidedTour({
                         </span>
                         <span style={{ color: 'rgba(154,176,204,0.25)', fontSize: 10 }}>·</span>
                         <span style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(154,176,204,0.45)' }}>
-                            {isComplete
-                                ? 'Complete'
-                                : isUserExploring || isPaused
-                                    ? 'Paused'
-                                    : `Step ${step + 1} of ${total}`}
+                            {isBooting
+                                ? 'Booting'
+                                : isComplete
+                                    ? 'Complete'
+                                    : isUserExploring || isPaused
+                                        ? 'Paused'
+                                        : `Step ${step + 1} of ${total}`}
                         </span>
                     </div>
                     <button
@@ -94,8 +104,36 @@ export function GuidedTour({
 
                 {/* ── Body ── */}
                 <AnimatePresence mode="wait">
-                    {/* Tour Complete */}
-                    {isComplete ? (
+
+                    {/* Boot sequence */}
+                    {isBooting ? (
+                        <motion.div
+                            key="booting"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <motion.p
+                                style={{ fontFamily: 'monospace', fontSize: 11, color: 'rgba(154,176,204,0.65)', marginBottom: 5 }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.1, duration: 0.35 }}
+                            >
+                                Initializing system map...
+                            </motion.p>
+                            <motion.p
+                                style={{ fontFamily: 'monospace', fontSize: 11, color: 'rgba(154,176,204,0.65)' }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.75, duration: 0.35 }}
+                            >
+                                Loading nodes...
+                            </motion.p>
+                        </motion.div>
+
+                    /* Tour Complete */
+                    ) : isComplete ? (
                         <motion.div
                             key="complete"
                             initial={{ opacity: 0, y: 8 }}
@@ -107,7 +145,7 @@ export function GuidedTour({
                                 Tour complete.
                             </p>
                             <p style={{ fontFamily: 'monospace', fontSize: 11, lineHeight: 1.65, color: 'rgba(154,176,204,0.72)' }}>
-                                You've seen the highlights. Explore the full graph freely, or reach out to connect.
+                                Explore the system — click any node to begin.
                             </p>
                             <div className="flex gap-3 mt-4">
                                 <button
@@ -194,6 +232,36 @@ export function GuidedTour({
                             <p style={{ fontFamily: 'monospace', fontSize: 11, lineHeight: 1.7, color: 'rgba(154,176,204,0.78)' }}>
                                 {stepData.caption}
                             </p>
+
+                            {/* Step 1 — identity: animated connection tree */}
+                            {stepData.id === 'identity' && (
+                                <motion.div
+                                    style={{
+                                        fontFamily: 'monospace',
+                                        fontSize: 10,
+                                        lineHeight: 1.9,
+                                        marginTop: 10,
+                                        paddingLeft: 4,
+                                        color: 'rgba(61,227,255,0.75)',
+                                        borderLeft: '1px solid rgba(61,227,255,0.18)',
+                                        paddingTop: 4,
+                                        paddingBottom: 4,
+                                    }}
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: [0, 1, 1, 0] }}
+                                    transition={{
+                                        times: [0, 0.12, 0.58, 0.80],
+                                        duration: 6.2,
+                                        delay: 0.4,
+                                        ease: 'easeInOut',
+                                    }}
+                                >
+                                    <div style={{ color: 'rgba(230,238,249,0.7)', marginBottom: 1 }}>Marc Smith</div>
+                                    <div style={{ paddingLeft: 10 }}>├── Leadership</div>
+                                    <div style={{ paddingLeft: 10 }}>└── Education</div>
+                                </motion.div>
+                            )}
+
                             {stepData.subline && (
                                 <p style={{ fontFamily: 'monospace', fontSize: 10, lineHeight: 1.6, color: 'rgba(61,227,255,0.45)', marginTop: 6 }}>
                                     {stepData.subline}

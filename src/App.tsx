@@ -35,11 +35,13 @@ function App() {
 
     // ── Guided tour state ────────────────────────────────────────────────────
     const [isTourActive,     setIsTourActive]     = useState(false);
+    const [isTourBooting,    setIsTourBooting]    = useState(false); // boot sequence before step 1
     const [tourStep,         setTourStep]         = useState(0);
     const [isTourPaused,     setIsTourPaused]     = useState(false);
     const [isUserExploring,  setIsUserExploring]  = useState(false);
     const [isTourComplete,   setIsTourComplete]   = useState(false);
     const tourTimerRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const tourBootRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
     const tourJumpingRef    = useRef(false);       // true while tour fires a programmatic jump
     const isTourActiveRef   = useRef(false);
     const isTourCompleteRef = useRef(false);
@@ -128,12 +130,19 @@ function App() {
         setIsTourPaused(false);
         setIsUserExploring(false);
         setIsTourComplete(false);
-        fireTourStep(0);
+        // Boot sequence: show "Initializing…" for 1.8s before firing step 0
+        setIsTourBooting(true);
+        tourBootRef.current = setTimeout(() => {
+            setIsTourBooting(false);
+            fireTourStep(0);
+        }, 1800);
     }, [fireTourStep]);
 
     const exitTour = useCallback(() => {
         if (tourTimerRef.current) clearTimeout(tourTimerRef.current);
+        if (tourBootRef.current)  clearTimeout(tourBootRef.current);
         setIsTourActive(false);
+        setIsTourBooting(false);
         setIsTourComplete(false);
         setIsUserExploring(false);
         setIsTourPaused(false);
@@ -175,12 +184,16 @@ function App() {
         setTourStep(0);
         setIsTourPaused(false);
         setIsUserExploring(false);
-        fireTourStep(0);
+        setIsTourBooting(true);
+        tourBootRef.current = setTimeout(() => {
+            setIsTourBooting(false);
+            fireTourStep(0);
+        }, 1800);
     }, [fireTourStep]);
 
     // Auto-advance: fires when step timer expires
     useEffect(() => {
-        if (!isTourActive || isTourPaused || isUserExploring || isTourComplete) {
+        if (!isTourActive || isTourBooting || isTourPaused || isUserExploring || isTourComplete) {
             if (tourTimerRef.current) clearTimeout(tourTimerRef.current);
             return;
         }
@@ -195,7 +208,7 @@ function App() {
             }
         }, step.duration);
         return () => { if (tourTimerRef.current) clearTimeout(tourTimerRef.current); };
-    }, [isTourActive, isTourPaused, isUserExploring, isTourComplete, tourStep, fireTourStep]);
+    }, [isTourActive, isTourBooting, isTourPaused, isUserExploring, isTourComplete, tourStep, fireTourStep]);
 
     /**
      * Wraps the BrainMap onSelect prop.
@@ -430,6 +443,7 @@ function App() {
                         step={tourStep}
                         stepData={TOUR_STEPS[tourStep]}
                         isPaused={isTourPaused}
+                        isBooting={isTourBooting}
                         isUserExploring={isUserExploring}
                         isComplete={isTourComplete}
                         onNext={handleTourNext}
