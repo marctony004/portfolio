@@ -268,6 +268,7 @@ function App() {
                                         paletteOpen={palette}
                                         contracting={spherePhase === 'transitioning'}
                                         tourActive={isTourActive && !isUserExploring}
+                                        tourSpotlightId={isTourActive && !isUserExploring ? (TOUR_STEPS[tourStep]?.targetNodeId ?? null) : null}
                                     />
                                 </div>
 

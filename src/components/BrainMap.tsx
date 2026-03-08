@@ -42,11 +42,12 @@ interface Props {
     jumpTo?: string | null;
     onJumpDone?: () => void;
     paletteOpen?: boolean;
-    contracting?: boolean; // true during the BrainSphere morph transition
-    tourActive?: boolean;  // true while guided tour controls navigation
+    contracting?: boolean;      // true during the BrainSphere morph transition
+    tourActive?: boolean;       // true while guided tour controls navigation
+    tourSpotlightId?: string | null; // node the tour is currently narrating
 }
 
-export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen, contracting = false, tourActive = false }: Props) => {
+export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen, contracting = false, tourActive = false, tourSpotlightId = null }: Props) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [dims, setDims]       = useState({ w: 800, h: 600 });
     const [hovered, setHovered] = useState<string | null>(null);
@@ -308,6 +309,11 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
     // Dimming logic
     const isChildSelected = PROJECTS_CHILDREN.some(c => c.id === selectedId);
 
+    // Tour spotlight geometry — position & radius of the spotlighted node
+    const spotlightIsChild = tourSpotlightId ? PROJECTS_CHILDREN.some(c => c.id === tourSpotlightId) : false;
+    const spotlightPos     = tourSpotlightId ? allNodes[tourSpotlightId] : null;
+    const spotlightR       = spotlightIsChild ? CHILD_SIZE / 2 : NODE_SIZE / 2;
+
     const orbitNodeDimmed = (node: OrbitNodeData): boolean => {
         if (activeFilter) {
             const matches = node.id === 'projects'
@@ -315,11 +321,13 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
                 : (node.capabilities?.includes(activeFilter) ?? false);
             return !matches && selectedId !== node.id;
         }
+        if (tourActive) return false; // tour uses softer isTourDimmed instead
         return !!selectedId && selectedId !== node.id && !isChildSelected;
     };
 
     const childNodeDimmed = (child: ChildNodeData): boolean => {
         if (activeFilter) return !(child.capabilities?.includes(activeFilter)) && selectedId !== child.id;
+        if (tourActive) return false; // tour uses softer isTourDimmed instead
         return !!selectedId && selectedId !== child.id;
     };
 
@@ -442,6 +450,38 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
                         })}
                     </AnimatePresence>
 
+                    {/* Tour spotlight rings — motion.g owns opacity so AnimatePresence
+                        can exit cleanly; plain circle children have no repeat animation
+                        that could block the exit sequence and leave ghost rings. */}
+                    <AnimatePresence>
+                        {tourSpotlightId && spotlightPos && (!spotlightIsChild || expanded) && (
+                            <motion.g
+                                key={`spotlight-${tourSpotlightId}`}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.4, ease: 'easeOut' }}
+                            >
+                                {/* Inner halo */}
+                                <circle
+                                    cx={spotlightPos.x} cy={spotlightPos.y}
+                                    r={spotlightR + 11}
+                                    fill="none"
+                                    stroke="rgba(61,227,255,0.42)"
+                                    strokeWidth={1.5}
+                                />
+                                {/* Outer soft glow ring */}
+                                <circle
+                                    cx={spotlightPos.x} cy={spotlightPos.y}
+                                    r={spotlightR + 26}
+                                    fill="none"
+                                    stroke="rgba(61,227,255,0.11)"
+                                    strokeWidth={1}
+                                />
+                            </motion.g>
+                        )}
+                    </AnimatePresence>
+
                     {/* Cross-routes */}
                     <AnimatePresence>
                         {crossEdges.map((edge, ei) => {
@@ -557,6 +597,7 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
                                 disableInternalDrift
                                 depthScale={ORBIT_DEPTHS[i]}
                                 driftIdx={i} reduced={reduced}
+                                isTourDimmed={tourActive && !!tourSpotlightId && node.id !== tourSpotlightId}
                                 onClick={(e) => handleNodeClick(node.id, pos.x, pos.y, node, e)}
                                 onHover={(on) => handleHover(node.id, pos.x, pos.y, node.label, node.tooltip, on)}
                             />
@@ -582,6 +623,7 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
                                     isKbFocused={kbFocus === child.id}
                                     isRelatedToHover={hoveredRelatedIds.has(child.id)}
                                     driftIdx={i + 10} reduced={reduced}
+                                    isTourDimmed={tourActive && !!tourSpotlightId && child.id !== tourSpotlightId}
                                     onClick={(e) => handleNodeClick(child.id, pos.x, pos.y, child, e)}
                                     onHover={(on) => handleHover(child.id, pos.x, pos.y, child.label, child.tooltip, on)}
                                 />

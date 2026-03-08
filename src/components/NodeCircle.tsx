@@ -15,6 +15,7 @@ export interface NodeCircleProps {
     disableInternalDrift?: boolean;
     depthScale?: number;
     driftIdx: number; reduced: boolean | null;
+    isTourDimmed?: boolean; // softer dim used during guided tour (0.5 vs 0.22)
     onClick: (e: React.MouseEvent) => void;
     onHover: (on: boolean) => void;
 }
@@ -23,7 +24,7 @@ export const NodeCircle = ({
     x, y, size, label, icon: Icon, isCenter, isChild,
     isActive, isDimmed, isHovered, isKbFocused, isRelatedToHover,
     expandable, isExpanded, isHinted, disableInternalDrift,
-    depthScale = 1, driftIdx, reduced, onClick, onHover,
+    depthScale = 1, driftIdx, reduced, isTourDimmed = false, onClick, onHover,
 }: NodeCircleProps) => {
     const dx  = Math.sin(driftIdx * 2.31) * 3;
     const dy  = Math.cos(driftIdx * 1.73) * 3;
@@ -75,7 +76,7 @@ export const NodeCircle = ({
             {/* Circle */}
             <motion.div
                 className="w-full h-full rounded-full flex items-center justify-center relative overflow-hidden"
-                animate={{ opacity: isDimmed ? 0.22 : 1, scale: isActive ? 1.12 : isHovered ? 1.06 : 1 }}
+                animate={{ opacity: isDimmed ? 0.22 : isTourDimmed ? 0.5 : 1, scale: isActive ? 1.12 : isHovered ? 1.06 : 1 }}
                 transition={{ duration: 0.28, ease: 'easeOut' }}
                 style={{
                     background: isCenter ? 'rgba(17,26,46,0.97)' : 'rgba(17,26,46,0.88)',
@@ -103,7 +104,7 @@ export const NodeCircle = ({
                 <div className="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap text-center pointer-events-none">
                     <span className="font-mono leading-none" style={{
                         fontSize: isChild ? 9 : 10,
-                        color: isActive ? ACCENT : isDimmed ? 'rgba(154,176,204,0.25)' : MUTED,
+                        color: isActive ? ACCENT : isDimmed ? 'rgba(154,176,204,0.25)' : isTourDimmed ? 'rgba(154,176,204,0.38)' : MUTED,
                     }}>
                         {label}
                         {expandable && (
