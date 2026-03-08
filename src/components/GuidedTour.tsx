@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TOUR_STEPS, type TourStep } from '../data/tourSteps';
 
@@ -8,6 +9,7 @@ interface Props {
     isBooting: boolean;
     isUserExploring: boolean;
     isComplete: boolean;
+    alignRight?: boolean; // true = panel sits bottom-right, false = bottom-left
     onNext: () => void;
     onBack: () => void;
     onPause: () => void;
@@ -28,19 +30,33 @@ const BTN_BASE: React.CSSProperties = {
 
 export function GuidedTour({
     step, stepData, isPaused, isBooting, isUserExploring, isComplete,
+    alignRight = true,
     onNext, onBack, onPause, onResume, onExit, onReplay,
 }: Props) {
     const total      = TOUR_STEPS.length;
     const isLastStep = step === total - 1;
+
+    // Compute the x offset needed to push the panel from left-4 to right-4.
+    // Panel is anchored at left:16px; to reach right:16px → x = viewport - panelW - 32.
+    const [rightX, setRightX] = useState(0);
+    useEffect(() => {
+        const update = () => {
+            const panelW = Math.min(400, window.innerWidth - 32);
+            setRightX(Math.max(0, window.innerWidth - panelW - 32));
+        };
+        update();
+        window.addEventListener('resize', update);
+        return () => window.removeEventListener('resize', update);
+    }, []);
 
     return (
         <motion.div
             className="fixed bottom-6 left-4 z-[90]"
             style={{ width: 'min(400px, calc(100vw - 32px))' }}
             initial={{ opacity: 0, y: 28 }}
-            animate={{ opacity: 1, y: 0 }}
+            animate={{ opacity: 1, y: 0, x: alignRight ? rightX : 0 }}
             exit={{ opacity: 0, y: 28 }}
-            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1], x: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] } }}
             role="dialog"
             aria-label="Guided portfolio tour"
         >

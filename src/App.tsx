@@ -489,6 +489,7 @@ function App() {
                         isBooting={isTourBooting}
                         isUserExploring={isUserExploring}
                         isComplete={isTourComplete}
+                        alignRight={TOUR_STEPS[tourStep]?.id !== 'assistant'}
                         onNext={handleTourNext}
                         onBack={handleTourBack}
                         onPause={handleTourPause}
