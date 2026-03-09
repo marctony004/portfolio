@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import { Network, FileText as FileTextIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BootSequence } from './components/BootSequence';
 import { Intro } from './components/Intro';
@@ -26,6 +27,7 @@ function App() {
     const [palette,       setPalette]       = useState(false);
     const [jumpTo,        setJumpTo]        = useState<string | null>(null);
     const [isMobile,        setIsMobile]        = useState(false);
+    const [mobileView,      setMobileView]      = useState<'map' | 'resume'>('map');
     const [recruiterMode,   setRecruiterMode]   = useState(false);
     const [spherePhase,   setSpherePhase]   = useState<'off' | 'transitioning' | 'on'>('off');
     const [helpOpen,      setHelpOpen]      = useState(false);
@@ -266,9 +268,68 @@ function App() {
                         transition={{ duration: 0.8 }}
                     >
                         {isMobile ? (
-                            /* Mobile: recruiter-style scrollable view */
-                            <div className="w-full overflow-y-auto">
-                                <RecruiterView showBack={false} onBack={() => {}} />
+                            /* Mobile: brain map with bottom-sheet inspector + tab bar */
+                            <div className="w-full h-dvh relative overflow-hidden">
+                                {mobileView === 'resume' ? (
+                                    <div className="w-full h-full overflow-y-auto">
+                                        <RecruiterView showBack onBack={() => setMobileView('map')} />
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* BrainMap fills viewport minus tab bar */}
+                                        <div style={{ width: '100%', height: 'calc(100dvh - 56px)', position: 'relative' }}>
+                                            <BrainMap
+                                                onSelect={handleBrainMapSelect}
+                                                selectedId={selected?.id ?? null}
+                                                jumpTo={jumpTo}
+                                                onJumpDone={() => setJumpTo(null)}
+                                                paletteOpen={false}
+                                                contracting={false}
+                                                tourActive={false}
+                                                tourHighlightNodeIds={[]}
+                                                isTourBooting={false}
+                                                isMobile={true}
+                                            />
+                                        </div>
+
+                                        {/* Bottom sheet inspector */}
+                                        <InspectorPanel
+                                            node={selected}
+                                            onClose={() => setSelected(null)}
+                                            onBreadcrumb={() => { setSelected(null); setJumpTo('projects'); }}
+                                            isMobile={true}
+                                        />
+
+                                        {/* Tab bar */}
+                                        <div
+                                            className="fixed bottom-0 left-0 right-0 z-50 flex"
+                                            style={{
+                                                height: 56,
+                                                background: 'rgba(11,18,32,0.96)',
+                                                borderTop: '1px solid rgba(61,227,255,0.10)',
+                                                backdropFilter: 'blur(12px)',
+                                                paddingBottom: 'env(safe-area-inset-bottom)',
+                                            }}
+                                        >
+                                            <button
+                                                onClick={() => setMobileView('map')}
+                                                className="flex-1 flex flex-col items-center justify-center gap-0.5 font-mono text-[9px] tracking-widest transition-colors"
+                                                style={{ color: '#3DE3FF' }}
+                                            >
+                                                <Network size={15} />
+                                                MAP
+                                            </button>
+                                            <button
+                                                onClick={() => setMobileView('resume')}
+                                                className="flex-1 flex flex-col items-center justify-center gap-0.5 font-mono text-[9px] tracking-widest transition-colors"
+                                                style={{ color: 'rgba(154,176,204,0.4)' }}
+                                            >
+                                                <FileTextIcon size={15} />
+                                                RESUME
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         ) : recruiterMode ? (
                             /* Recruiter view */

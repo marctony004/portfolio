@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
+import { useMapGestures } from '../hooks/useMapGestures';
 import { motion, AnimatePresence, useReducedMotion, useMotionValue, useAnimationFrame, useAnimation } from 'framer-motion';
 import { orbitNodes, currentStatus, type Capability } from '../data/brainData';
 import type { OrbitNodeData, ChildNodeData } from '../data/brainData';
@@ -47,9 +48,10 @@ interface Props {
     tourSpotlightId?: string | null; // node the tour is currently narrating
     tourHighlightNodeIds?: string[]; // orbit node ids whose center-edge should glow briefly
     isTourBooting?: boolean;    // true during the 1.8s boot phase before step 1
+    isMobile?: boolean;
 }
 
-export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen, contracting = false, tourActive = false, tourSpotlightId = null, tourHighlightNodeIds, isTourBooting = false }: Props) => {
+export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen, contracting = false, tourActive = false, tourSpotlightId = null, tourHighlightNodeIds, isTourBooting = false, isMobile = false }: Props) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [dims, setDims]       = useState({ w: 800, h: 600 });
     const [hovered, setHovered] = useState<string | null>(null);
@@ -198,9 +200,10 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
     const cy = dims.h * 0.5;
     const orbitR      = Math.min(dims.w * 0.42, dims.h * 0.38);
     const childR      = orbitR * 0.38;
+    const tapMul      = isMobile ? 1.18 : 1;
     const CENTER_SIZE = Math.min(88, orbitR * 0.42);
-    const NODE_SIZE   = Math.min(64, orbitR * 0.30);
-    const CHILD_SIZE  = Math.min(50, orbitR * 0.24);
+    const NODE_SIZE   = Math.min(64, orbitR * 0.30) * tapMul;
+    const CHILD_SIZE  = Math.min(50, orbitR * 0.24) * tapMul;
 
     const positions   = useMemo(() => orbitPositions(cx, cy, orbitR), [cx, cy, orbitR]);
     const projectsPos = positions[PROJECTS_IDX >= 0 ? PROJECTS_IDX : 0];
@@ -295,6 +298,27 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
         cameraRef.current = { x: targetX, y: targetY, scale: targetScale };
     }, [cx, cy, cameraControls]);
 
+    // Mobile pan/pinch
+    const handlePan = useCallback((dx: number, dy: number) => {
+        const LIMIT = orbitR * 1.6;
+        const newX  = Math.max(-LIMIT, Math.min(LIMIT, cameraRef.current.x + dx));
+        const newY  = Math.max(-LIMIT, Math.min(LIMIT, cameraRef.current.y + dy));
+        cameraRef.current = { ...cameraRef.current, x: newX, y: newY };
+        cameraControls.start({ x: newX, y: newY, transition: { duration: 0 } });
+    }, [cameraControls, orbitR]);
+
+    const handlePinch = useCallback((scaleDelta: number) => {
+        const newScale = Math.max(0.45, Math.min(2.4, cameraRef.current.scale * scaleDelta));
+        cameraRef.current = { ...cameraRef.current, scale: newScale };
+        cameraControls.start({ scale: newScale, transition: { duration: 0 } });
+    }, [cameraControls]);
+
+    const { isPanningRef } = useMapGestures(containerRef, {
+        onPan:   handlePan,
+        onPinch: handlePinch,
+        enabled: isMobile,
+    });
+
     // Keyboard navigation
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -354,9 +378,9 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
     };
 
     const handleBgClick = () => {
-        if (tourActive) return; // tour controls navigation; ignore bg clicks
+        if (tourActive) return;
+        if (isMobile && isPanningRef.current) return; // pan gesture ended — don't deselect
         onSelect(null);
-        // camera resets via the selectedId === null effect above
         setExpanded(false);
         setKbFocus(null);
     };
@@ -394,8 +418,8 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
     return (
         <div ref={containerRef} className="relative w-full h-full overflow-hidden" onClick={handleBgClick}>
 
-            {/* Capability filter chips */}
-            <CapabilityChips active={activeFilter} onToggle={(cap) => setActiveFilter(cap)} />
+            {/* Capability filter chips — desktop only */}
+            {!isMobile && <CapabilityChips active={activeFilter} onToggle={(cap) => setActiveFilter(cap)} />}
 
             {/* Keyboard nav hint */}
             <AnimatePresence>
@@ -720,9 +744,9 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
                 </AnimatePresence>
             </motion.div>
 
-            {/* Tooltip */}
+            {/* Tooltip — desktop only (no hover on touch) */}
             <AnimatePresence>
-                {tooltip && hovered && (
+                {!isMobile && tooltip && hovered && (
                     <Tooltip
                         key={hovered}
                         x={tooltip.x + cameraRef.current.x}
@@ -748,7 +772,7 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
                         <div className="rounded-md px-3 py-1.5"
                             style={{ background: 'rgba(17,26,46,0.92)', border: '1px solid rgba(61,227,255,0.18)', backdropFilter: 'blur(8px)' }}>
                             <p className="font-mono text-[10px] whitespace-nowrap" style={{ color: 'rgba(61,227,255,0.7)' }}>
-                                Click any node to explore →
+                                {isMobile ? 'Tap any node to explore →' : 'Click any node to explore →'}
                             </p>
                         </div>
                     </motion.div>
@@ -756,9 +780,12 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
             </AnimatePresence>
 
             {/* Bottom hint */}
-            <div className="absolute bottom-5 left-5 pointer-events-none">
+            <div className={`absolute left-5 pointer-events-none ${isMobile ? 'bottom-20' : 'bottom-5'}`}>
                 <p className="font-mono text-[10px] text-muted/35 tracking-widest">
-                    click · <span style={{ color: 'rgba(61,227,255,0.4)' }}>↑↓</span> keys · <span className="text-accent/50">/</span> search · <span className="text-accent/50">?</span> help
+                    {isMobile
+                        ? <>tap · <span style={{ color: 'rgba(61,227,255,0.4)' }}>pinch</span> to zoom</>
+                        : <>click · <span style={{ color: 'rgba(61,227,255,0.4)' }}>↑↓</span> keys · <span className="text-accent/50">/</span> search · <span className="text-accent/50">?</span> help</>
+                    }
                 </p>
             </div>
         </div>
