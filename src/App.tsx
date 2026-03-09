@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { Network, FileText as FileTextIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { BootSequence } from './components/BootSequence';
 import { Intro } from './components/Intro';
 import { BrainMap } from './components/BrainMap';
@@ -242,7 +243,7 @@ function App() {
     })();
 
     return (
-        <div className="w-full min-h-screen" style={{ background: '#0B1220' }}>
+        <div className="w-full" style={{ background: '#0B1220', minHeight: '100dvh' }}>
             {/* Noise SVG filter (subtle texture) */}
             <svg className="absolute w-0 h-0">
                 <defs>
@@ -262,20 +263,22 @@ function App() {
                 ) : (
                     <motion.div
                         key="app"
-                        className="w-full h-screen flex overflow-hidden"
-                        initial={{ opacity: 0 }}
+                        className="w-full flex overflow-hidden"
+                        style={{ height: '100dvh' }}
+                        initial={{ opacity: isMobile ? 1 : 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.8 }}
                     >
                         {isMobile ? (
                             /* Mobile: brain map with bottom-sheet inspector + tab bar */
-                            <div className="w-full h-full flex flex-col overflow-hidden">
+                            <div className="w-full flex flex-col overflow-hidden" style={{ height: '100dvh' }}>
                                 {mobileView === 'resume' ? (
-                                    <div className="w-full h-full overflow-y-auto">
+                                    <div className="w-full flex-1 overflow-y-auto min-h-0">
                                         <RecruiterView showBack onBack={() => setMobileView('map')} />
                                     </div>
                                 ) : (
-                                    <>
+                                    <ErrorBoundary>
+                                        <>
                                         {/* BrainMap: flex-1 + min-h-0 ensures it always gets a real measured height */}
                                         <div className="flex-1 relative overflow-hidden min-h-0">
                                             <BrainMap
@@ -328,7 +331,8 @@ function App() {
                                                 RESUME
                                             </button>
                                         </div>
-                                    </>
+                                        </>
+                                    </ErrorBoundary>
                                 )}
                             </div>
                         ) : recruiterMode ? (
