@@ -155,19 +155,19 @@ export const InspectorPanel = ({ node, onClose, onBreadcrumb, isMobile = false }
             </div>
 
             {/* Links */}
-            {(links || childNode.links) && (
+            {(links || childNode?.links) && (
                 <div>
                     <p className="font-mono text-[10px] text-muted/60 tracking-widest uppercase mb-3">Links</p>
                     <div className="flex flex-wrap gap-2">
-                        {(links?.github || childNode.links?.github) && (
-                            <a href={links?.github || childNode.links?.github} target="_blank" rel="noreferrer"
+                        {(links?.github || childNode?.links?.github) && (
+                            <a href={links?.github || childNode?.links?.github} target="_blank" rel="noreferrer"
                                 className="flex items-center gap-1.5 px-3 py-2.5 sm:py-1.5 rounded text-sm font-mono transition-colors text-muted hover:text-accent"
                                 style={{ background: 'rgba(61,227,255,0.06)', border: '1px solid rgba(61,227,255,0.15)' }}>
                                 <Github size={13} /> GitHub
                             </a>
                         )}
-                        {(links?.demo || childNode.links?.demo) && (
-                            <a href={links?.demo || childNode.links?.demo} target="_blank" rel="noreferrer"
+                        {(links?.demo || childNode?.links?.demo) && (
+                            <a href={links?.demo || childNode?.links?.demo} target="_blank" rel="noreferrer"
                                 className="flex items-center gap-1.5 px-3 py-2.5 sm:py-1.5 rounded text-sm font-mono transition-colors text-muted hover:text-accent"
                                 style={{ background: 'rgba(61,227,255,0.06)', border: '1px solid rgba(61,227,255,0.15)' }}>
                                 <ExternalLink size={13} /> Demo
