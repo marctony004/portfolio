@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
-import { Network, FileText as FileTextIcon } from 'lucide-react';
+import { Network, FileText as FileTextIcon, MoreHorizontal } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { BootSequence } from './components/BootSequence';
@@ -29,6 +29,7 @@ function App() {
     const [jumpTo,        setJumpTo]        = useState<string | null>(null);
     const [isMobile,        setIsMobile]        = useState(false);
     const [mobileView,      setMobileView]      = useState<'map' | 'resume'>('map');
+    const [moreOpen,        setMoreOpen]        = useState(false);
     const [recruiterMode,   setRecruiterMode]   = useState(false);
     const [spherePhase,   setSpherePhase]   = useState<'off' | 'transitioning' | 'on'>('off');
     const [helpOpen,      setHelpOpen]      = useState(false);
@@ -100,6 +101,14 @@ function App() {
         const hash = window.location.hash;
         if (hash.startsWith('#node:')) setTimeout(() => setJumpTo(hash.slice(6)), 500);
     }, [entered]);
+
+    const handleOpenSphere = useCallback(() => {
+        if (spherePhase !== 'off') return;
+        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduced) { setSpherePhase('on'); return; }
+        setSpherePhase('transitioning');
+        sphereTimerRef.current = setTimeout(() => setSpherePhase('on'), 3000);
+    }, [spherePhase]);
 
     const handleCommand = useCallback((action: string) => {
         if (action === 'resume')          { window.open('/resume.html', '_blank'); return; }
@@ -270,16 +279,15 @@ function App() {
                         transition={{ duration: 0.8 }}
                     >
                         {isMobile ? (
-                            /* Mobile: brain map with bottom-sheet inspector + tab bar */
+                            /* Mobile: brain map with bottom-sheet inspector + persistent tab bar */
                             <div className="w-full flex flex-col overflow-hidden" style={{ height: '100dvh' }}>
+                                {/* Content area */}
                                 {mobileView === 'resume' ? (
-                                    <div className="w-full flex-1 overflow-y-auto min-h-0">
+                                    <div className="flex-1 overflow-y-auto min-h-0" style={{ paddingBottom: 56 }}>
                                         <RecruiterView showBack onBack={() => setMobileView('map')} />
                                     </div>
                                 ) : (
                                     <ErrorBoundary>
-                                        <>
-                                        {/* BrainMap: flex-1 + min-h-0 ensures it always gets a real measured height */}
                                         <div className="flex-1 relative overflow-hidden min-h-0">
                                             <BrainMap
                                                 onSelect={handleBrainMapSelect}
@@ -288,52 +296,148 @@ function App() {
                                                 onJumpDone={() => setJumpTo(null)}
                                                 paletteOpen={false}
                                                 contracting={false}
-                                                tourActive={false}
-                                                tourHighlightNodeIds={[]}
-                                                isTourBooting={false}
+                                                tourActive={isTourActive && !isUserExploring}
+                                                tourHighlightNodeIds={tourHighlightNodeIds ?? []}
+                                                isTourBooting={isTourBooting}
                                                 isMobile={true}
                                             />
                                         </div>
-
-                                        {/* Bottom sheet inspector */}
-                                        <InspectorPanel
-                                            node={selected}
-                                            onClose={() => setSelected(null)}
-                                            onBreadcrumb={() => { setSelected(null); setJumpTo('projects'); }}
-                                            isMobile={true}
-                                        />
-
-                                        {/* Tab bar */}
-                                        <div
-                                            className="fixed bottom-0 left-0 right-0 z-50 flex"
-                                            style={{
-                                                height: 56,
-                                                background: 'rgba(11,18,32,0.96)',
-                                                borderTop: '1px solid rgba(61,227,255,0.10)',
-                                                backdropFilter: 'blur(12px)',
-                                                paddingBottom: 'env(safe-area-inset-bottom)',
-                                            }}
-                                        >
-                                            <button
-                                                onClick={() => setMobileView('map')}
-                                                className="flex-1 flex flex-col items-center justify-center gap-0.5 font-mono text-[9px] tracking-widest transition-colors"
-                                                style={{ color: '#3DE3FF' }}
-                                            >
-                                                <Network size={15} />
-                                                MAP
-                                            </button>
-                                            <button
-                                                onClick={() => setMobileView('resume')}
-                                                className="flex-1 flex flex-col items-center justify-center gap-0.5 font-mono text-[9px] tracking-widest transition-colors"
-                                                style={{ color: 'rgba(154,176,204,0.4)' }}
-                                            >
-                                                <FileTextIcon size={15} />
-                                                RESUME
-                                            </button>
-                                        </div>
-                                        </>
                                     </ErrorBoundary>
                                 )}
+
+                                {/* Bottom sheet inspector — only on map view */}
+                                {mobileView !== 'resume' && (
+                                    <InspectorPanel
+                                        node={selected}
+                                        onClose={() => setSelected(null)}
+                                        onBreadcrumb={() => { setSelected(null); setJumpTo('projects'); }}
+                                        isMobile={true}
+                                    />
+                                )}
+
+                                {/* Tab bar — always visible */}
+                                <div
+                                    className="fixed bottom-0 left-0 right-0 z-50 flex"
+                                    style={{
+                                        height: 56,
+                                        background: 'rgba(11,18,32,0.96)',
+                                        borderTop: '1px solid rgba(61,227,255,0.10)',
+                                        backdropFilter: 'blur(12px)',
+                                        paddingBottom: 'env(safe-area-inset-bottom)',
+                                    }}
+                                >
+                                    <button
+                                        onClick={() => setMobileView('map')}
+                                        className="flex-1 flex flex-col items-center justify-center gap-0.5 font-mono text-[9px] tracking-widest transition-colors"
+                                        style={{ color: mobileView === 'map' ? '#3DE3FF' : 'rgba(154,176,204,0.4)' }}
+                                    >
+                                        <Network size={15} />
+                                        MAP
+                                    </button>
+                                    <button
+                                        onClick={() => setMobileView('resume')}
+                                        className="flex-1 flex flex-col items-center justify-center gap-0.5 font-mono text-[9px] tracking-widest transition-colors"
+                                        style={{ color: mobileView === 'resume' ? '#3DE3FF' : 'rgba(154,176,204,0.4)' }}
+                                    >
+                                        <FileTextIcon size={15} />
+                                        RESUME
+                                    </button>
+                                    <button
+                                        onClick={() => setMoreOpen(true)}
+                                        className="flex-1 flex flex-col items-center justify-center gap-0.5 font-mono text-[9px] tracking-widest transition-colors"
+                                        style={{ color: 'rgba(154,176,204,0.4)' }}
+                                    >
+                                        <MoreHorizontal size={15} />
+                                        MORE
+                                    </button>
+                                </div>
+
+                                {/* More sheet — backdrop */}
+                                <AnimatePresence>
+                                    {moreOpen && (
+                                        <motion.div
+                                            key="more-backdrop"
+                                            className="fixed inset-0 z-[64]"
+                                            style={{ background: 'rgba(0,0,0,0.5)' }}
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            transition={{ duration: 0.2 }}
+                                            onClick={() => setMoreOpen(false)}
+                                        />
+                                    )}
+                                </AnimatePresence>
+
+                                {/* More sheet — panel */}
+                                <AnimatePresence>
+                                    {moreOpen && (
+                                        <motion.div
+                                            key="more-sheet"
+                                            className="fixed left-0 right-0 z-[65]"
+                                            style={{
+                                                bottom: 56,
+                                                background: 'rgba(17,26,46,0.97)',
+                                                borderTop: '1px solid rgba(61,227,255,0.14)',
+                                                borderRadius: '16px 16px 0 0',
+                                                backdropFilter: 'blur(16px)',
+                                                WebkitBackdropFilter: 'blur(16px)',
+                                                boxShadow: '0 -8px 40px rgba(0,0,0,0.4)',
+                                            }}
+                                            initial={{ y: '100%' }}
+                                            animate={{ y: 0 }}
+                                            exit={{ y: '100%' }}
+                                            transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+                                        >
+                                            {/* Drag handle */}
+                                            <div className="flex items-center justify-center pt-3 pb-2">
+                                                <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(61,227,255,0.18)' }} />
+                                            </div>
+
+                                            <div className="px-5 pb-7 space-y-2">
+                                                <p className="font-mono text-[10px] tracking-widest uppercase mb-4"
+                                                    style={{ color: 'rgba(61,227,255,0.4)' }}>
+                                                    Explore
+                                                </p>
+
+                                                {/* Take a Tour */}
+                                                <button
+                                                    onClick={() => { setMoreOpen(false); startTour(); }}
+                                                    className="w-full flex items-center gap-3 px-4 py-3.5 rounded-lg font-mono text-sm transition-colors text-left"
+                                                    style={{
+                                                        background: 'rgba(61,227,255,0.04)',
+                                                        border: '1px solid rgba(61,227,255,0.12)',
+                                                        color: 'rgba(154,176,204,0.8)',
+                                                    }}
+                                                >
+                                                    <span style={{ color: '#3DE3FF', fontSize: 16 }}>▷</span>
+                                                    <div>
+                                                        <p className="text-sm font-medium" style={{ color: '#E6EEF9' }}>Take a Tour</p>
+                                                        <p className="text-[10px] font-mono mt-0.5" style={{ color: 'rgba(154,176,204,0.45)' }}>60-second guided walkthrough</p>
+                                                    </div>
+                                                </button>
+
+                                                {/* Brain Sphere */}
+                                                <button
+                                                    onClick={() => { setMoreOpen(false); handleOpenSphere(); }}
+                                                    disabled={spherePhase !== 'off'}
+                                                    className="w-full flex items-center gap-3 px-4 py-3.5 rounded-lg font-mono text-sm transition-colors text-left"
+                                                    style={{
+                                                        background: 'rgba(61,227,255,0.04)',
+                                                        border: '1px solid rgba(61,227,255,0.12)',
+                                                        color: spherePhase !== 'off' ? 'rgba(154,176,204,0.3)' : 'rgba(154,176,204,0.8)',
+                                                        opacity: spherePhase !== 'off' ? 0.5 : 1,
+                                                    }}
+                                                >
+                                                    <span style={{ color: '#3DE3FF', fontSize: 16 }}>◉</span>
+                                                    <div>
+                                                        <p className="text-sm font-medium" style={{ color: spherePhase !== 'off' ? 'rgba(230,238,249,0.4)' : '#E6EEF9' }}>Brain Sphere</p>
+                                                        <p className="text-[10px] font-mono mt-0.5" style={{ color: 'rgba(154,176,204,0.45)' }}>3D neural visualisation</p>
+                                                    </div>
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
                         ) : recruiterMode ? (
                             /* Recruiter view */
@@ -402,14 +506,7 @@ function App() {
 
                                     {/* Brain Sphere */}
                                     <motion.button
-                                        onClick={() => {
-                                            if (spherePhase !== 'off') return;
-                                            if (sphereTimerRef.current) clearTimeout(sphereTimerRef.current);
-                                            const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-                                            if (reduced) { setSpherePhase('on'); return; }
-                                            setSpherePhase('transitioning');
-                                            sphereTimerRef.current = setTimeout(() => setSpherePhase('on'), 3000);
-                                        }}
+                                        onClick={handleOpenSphere}
                                         className="flex items-center gap-1.5 font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full"
                                         style={{
                                             background: 'rgba(11,18,32,0.85)',

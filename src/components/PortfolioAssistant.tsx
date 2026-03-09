@@ -185,11 +185,39 @@ export const PortfolioAssistant = ({ tourActive = false, tourHighlightAssistant 
     return (
         <>
             {/* ── Chat panel ── */}
+
+            {/* Mobile backdrop */}
+            <AnimatePresence>
+                {open && isMobile && (
+                    <motion.div
+                        key="chat-backdrop"
+                        className="fixed inset-0 z-[88]"
+                        style={{ background: 'rgba(0,0,0,0.45)' }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        onClick={() => setOpen(false)}
+                    />
+                )}
+            </AnimatePresence>
+
             <AnimatePresence>
                 {open && (
                     <motion.div
                         className="fixed z-[90] flex flex-col"
-                        style={{
+                        style={isMobile ? {
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: 'min(80dvh, 600px)',
+                            background: 'rgba(13,20,38,0.97)',
+                            border: '1px solid rgba(61,227,255,0.14)',
+                            borderRadius: '16px 16px 0 0',
+                            boxShadow: '0 -8px 40px rgba(0,0,0,0.5)',
+                            backdropFilter: 'blur(18px)',
+                            WebkitBackdropFilter: 'blur(18px)',
+                        } : {
                             bottom: '5.5rem',
                             right: '1.25rem',
                             width: 'min(380px, calc(100vw - 2.5rem))',
@@ -201,11 +229,21 @@ export const PortfolioAssistant = ({ tourActive = false, tourHighlightAssistant 
                             backdropFilter: 'blur(18px)',
                             WebkitBackdropFilter: 'blur(18px)',
                         }}
-                        initial={{ opacity: 0, y: 14, scale: 0.97 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.97 }}
-                        transition={{ duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }}
+                        initial={isMobile ? { y: '100%' } : { opacity: 0, y: 14, scale: 0.97 }}
+                        animate={isMobile ? { y: 0 } : { opacity: 1, y: 0, scale: 1 }}
+                        exit={isMobile ? { y: '100%' } : { opacity: 0, y: 10, scale: 0.97 }}
+                        transition={isMobile
+                            ? { type: 'spring', damping: 28, stiffness: 260 }
+                            : { duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }
+                        }
                     >
+                        {/* Drag handle (mobile only) */}
+                        {isMobile && (
+                            <div className="flex items-center justify-center pt-3 pb-1 shrink-0">
+                                <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(61,227,255,0.18)' }} />
+                            </div>
+                        )}
+
                         {/* Top edge highlight */}
                         <div className="absolute top-0 left-0 right-0 h-[1px] rounded-t-[14px]"
                             style={{ background: 'linear-gradient(90deg, transparent, rgba(61,227,255,0.22), transparent)' }} />
