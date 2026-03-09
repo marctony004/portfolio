@@ -188,6 +188,10 @@ interface Props {
     idlePulse?:            IdlePulseData | null;
     idleGlowTimes?:        Map<string, number>;
     onIdlePulseComplete?:  () => void;
+    // Gesture targeting — written each frame, read by GestureLayer overlay
+    focusedNodeScreenPosRef?: React.MutableRefObject<{ x: number; y: number } | null>;
+    focusedNodeLabelRef?:     React.MutableRefObject<string | null>;
+    gestureCursorRef?:        React.MutableRefObject<{ x: number; y: number } | null>;
 }
 
 // Reusable vector (avoids GC pressure in useFrame)
@@ -312,7 +316,7 @@ function GlobeElectricBuzz() {
     );
 }
 
-export function SphereScene({ nodes, edges, selectedId, expandedId, onSelect, camRef, focusedNodeIdRef, hasDraggedRef, idleRotate, waveTimeRef, waveActive, waveDelays, idlePulse, idleGlowTimes, onIdlePulseComplete }: Props) {
+export function SphereScene({ nodes, edges, selectedId, expandedId, onSelect, camRef, focusedNodeIdRef, hasDraggedRef, idleRotate, waveTimeRef, waveActive, waveDelays, idlePulse, idleGlowTimes, onIdlePulseComplete, focusedNodeScreenPosRef, focusedNodeLabelRef, gestureCursorRef }: Props) {
     const frameRef = useRef(0);
 
     // Visible nodes: progressive disclosure model.
@@ -401,19 +405,39 @@ export function SphereScene({ nodes, edges, selectedId, expandedId, onSelect, ca
         camera.position.set(s.distance * sp * ct, s.distance * cp, s.distance * sp * st);
         camera.lookAt(0, 0, 0);
 
-        // Update focused node (nearest to screen center) — every 4 frames
+        // Update focused node — nearest to gesture cursor (index finger) when available,
+        // otherwise nearest to screen center. Skips the center node (always at NDC origin).
         frameRef.current++;
         if (frameRef.current % 4 === 0) {
+            const cursor = gestureCursorRef?.current;
+            const tx = cursor?.x ?? 0;
+            const ty = cursor?.y ?? 0;
+
             let closestId   = null as string | null;
             let closestDist = Infinity;
+            let closestNdcX = 0, closestNdcY = 0;
             for (const node of visibleNodes) {
+                if (node.nodeType === 'center') continue;
                 _vec.set(...node.position);
                 _vec.project(camera as THREE.Camera);
                 if (_vec.z >= 1) continue;
-                const d = _vec.x * _vec.x + _vec.y * _vec.y;
-                if (d < closestDist) { closestDist = d; closestId = node.id; }
+                const d = (_vec.x - tx) * (_vec.x - tx) + (_vec.y - ty) * (_vec.y - ty);
+                if (d < closestDist) {
+                    closestDist = d;
+                    closestId   = node.id;
+                    closestNdcX = _vec.x;
+                    closestNdcY = _vec.y;
+                }
             }
             focusedNodeIdRef.current = closestId;
+            if (focusedNodeScreenPosRef) {
+                focusedNodeScreenPosRef.current = closestId ? { x: closestNdcX, y: closestNdcY } : null;
+            }
+            if (focusedNodeLabelRef) {
+                focusedNodeLabelRef.current = closestId
+                    ? (visibleNodes.find(n => n.id === closestId)?.label ?? null)
+                    : null;
+            }
         }
     });
 

@@ -118,9 +118,12 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
     });
 
     // Camera state — written by mouse/gesture/focus, read by SphereScene useFrame
-    const camRef           = useRef<CamState>({ ...INITIAL_CAM });
-    const focusedNodeIdRef = useRef<string | null>(null);
-    const hasDraggedRef    = useRef(false);
+    const camRef                  = useRef<CamState>({ ...INITIAL_CAM });
+    const focusedNodeIdRef        = useRef<string | null>(null);
+    const focusedNodeScreenPosRef = useRef<{ x: number; y: number } | null>(null);
+    const focusedNodeLabelRef     = useRef<string | null>(null);
+    const gestureCursorRef        = useRef<{ x: number; y: number } | null>(null);
+    const hasDraggedRef           = useRef(false);
     const isDraggingRef    = useRef(false);
     const lastPtrRef       = useRef({ x: 0, y: 0 });
 
@@ -235,6 +238,11 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
     const handleGestureSelect = useCallback((id: string) => {
         handleSelect(id);
     }, [handleSelect]);
+
+    const handleGestureClose = useCallback(() => {
+        setSelectedId(null);
+        setExpandedId(null);
+    }, []);
 
     // Clicking empty space deselects and collapses (only on clean click, not drag)
     const handlePointerMissed = useCallback(() => {
@@ -404,6 +412,9 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
                         onSelect={handleSelect}
                         camRef={camRef}
                         focusedNodeIdRef={focusedNodeIdRef}
+                        focusedNodeScreenPosRef={focusedNodeScreenPosRef}
+                        focusedNodeLabelRef={focusedNodeLabelRef}
+                        gestureCursorRef={gestureCursorRef}
                         hasDraggedRef={hasDraggedRef}
                         idleRotate={!hasActivity}
                         waveTimeRef={waveTimeRef}
@@ -432,7 +443,11 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
                 <GestureLayer
                     camRef={camRef}
                     focusedNodeIdRef={focusedNodeIdRef}
+                    focusedNodeScreenPosRef={focusedNodeScreenPosRef}
+                    focusedNodeLabelRef={focusedNodeLabelRef}
+                    gestureCursorRef={gestureCursorRef}
                     onGestureSelect={handleGestureSelect}
+                    onGestureClose={handleGestureClose}
                 />
 
                 {/* Inspector panel */}

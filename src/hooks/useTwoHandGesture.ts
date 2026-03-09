@@ -13,6 +13,7 @@ export interface TwoHandState {
     rotationDelta: { dx: number; dy: number };
     zoomDelta: number;
     freshPinch: boolean;   // true only on the single frame when pinch first fires
+    freshFist:  boolean;   // true only on the single frame when fist first fires (close gesture)
     isActive: boolean;     // true when both hands are in open-palm control mode
 }
 
@@ -21,6 +22,7 @@ const ROT_SCALE      = 3.8;
 const ZOOM_SCALE     = 7.0;
 const ALPHA          = 0.28;   // EWMA smoothing (lower = smoother but laggier)
 const PINCH_COOLDOWN = 700;    // ms between pinch events
+const FIST_COOLDOWN  = 900;    // ms between fist (close) events
 
 function mapGesture(raw: string): HandGesture {
     if (raw === 'Open_Palm' || raw === 'Thumb_Up') return 'open_palm';
@@ -38,7 +40,7 @@ export function useTwoHandGesture() {
 
     const [isLoading,     setIsLoading]     = useState(false);
     const [twoHandState,  setTwoHandState]  = useState<TwoHandState>({
-        hands: [], rotationDelta: { dx: 0, dy: 0 }, zoomDelta: 0, freshPinch: false, isActive: false,
+        hands: [], rotationDelta: { dx: 0, dy: 0 }, zoomDelta: 0, freshPinch: false, freshFist: false, isActive: false,
     });
 
     const recognizerRef  = useRef<unknown>(null);
@@ -52,6 +54,8 @@ export function useTwoHandGesture() {
     const prevSpreadRef  = useRef<number | null>(null);
     const wasPinchRef    = useRef(false);
     const lastPinchRef   = useRef(0);
+    const wasFistRef     = useRef(false);
+    const lastFistRef    = useRef(0);
 
     const stop = useCallback(() => {
         runningRef.current = false;
@@ -222,11 +226,18 @@ export function useTwoHandGesture() {
                 if (freshPinch) lastPinchRef.current = now;
                 wasPinchRef.current = anyPinch;
 
+                // ── Rising-edge fist (close gesture) ───────────────────────────
+                const anyFist = hands.some(h => h.gesture === 'fist');
+                const freshFist = anyFist && !wasFistRef.current && now - lastFistRef.current > FIST_COOLDOWN;
+                if (freshFist) lastFistRef.current = now;
+                wasFistRef.current = anyFist;
+
                 setTwoHandState({
                     hands,
                     rotationDelta: { dx: rotDx, dy: rotDy },
                     zoomDelta:     zoomD,
                     freshPinch,
+                    freshFist,
                     isActive:      bothPalms,
                 });
 
