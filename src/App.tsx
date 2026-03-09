@@ -269,15 +269,15 @@ function App() {
                     >
                         {isMobile ? (
                             /* Mobile: brain map with bottom-sheet inspector + tab bar */
-                            <div className="w-full h-dvh relative overflow-hidden">
+                            <div className="w-full h-full flex flex-col overflow-hidden">
                                 {mobileView === 'resume' ? (
                                     <div className="w-full h-full overflow-y-auto">
                                         <RecruiterView showBack onBack={() => setMobileView('map')} />
                                     </div>
                                 ) : (
                                     <>
-                                        {/* BrainMap fills viewport minus tab bar */}
-                                        <div style={{ width: '100%', height: 'calc(100dvh - 56px)', position: 'relative' }}>
+                                        {/* BrainMap: flex-1 + min-h-0 ensures it always gets a real measured height */}
+                                        <div className="flex-1 relative overflow-hidden min-h-0">
                                             <BrainMap
                                                 onSelect={handleBrainMapSelect}
                                                 selectedId={selected?.id ?? null}
