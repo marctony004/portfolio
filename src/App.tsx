@@ -6,7 +6,6 @@ import { BrainMap } from './components/BrainMap';
 import { InspectorPanel } from './components/InspectorPanel';
 import { CommandPalette } from './components/CommandPalette';
 import { RecruiterView } from './components/RecruiterView';
-import { MobileLanding } from './components/MobileLanding';
 import { ShortcutHelp } from './components/ShortcutHelp';
 import { PortfolioAssistant } from './components/PortfolioAssistant';
 import { GuidedTour } from './components/GuidedTour';
@@ -27,8 +26,6 @@ function App() {
     const [palette,       setPalette]       = useState(false);
     const [jumpTo,        setJumpTo]        = useState<string | null>(null);
     const [isMobile,        setIsMobile]        = useState(false);
-    const [mobilePastGate,  setMobilePastGate]  = useState(false);
-    const [mobileViewMap,   setMobileViewMap]   = useState(false);
     const [recruiterMode,   setRecruiterMode]   = useState(false);
     const [spherePhase,   setSpherePhase]   = useState<'off' | 'transitioning' | 'on'>('off');
     const [helpOpen,      setHelpOpen]      = useState(false);
@@ -268,13 +265,7 @@ function App() {
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.8 }}
                     >
-                        {isMobile && !mobilePastGate && !mobileViewMap ? (
-                            /* Mobile: best-on-desktop gate */
-                            <MobileLanding
-                                onContinue={() => setMobilePastGate(true)}
-                                onViewMap={() => setMobileViewMap(true)}
-                            />
-                        ) : isMobile && mobilePastGate ? (
+                        {isMobile ? (
                             /* Mobile: recruiter-style scrollable view */
                             <div className="w-full overflow-y-auto">
                                 <RecruiterView showBack={false} onBack={() => {}} />

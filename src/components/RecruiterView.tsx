@@ -1,10 +1,83 @@
-import { motion } from 'framer-motion';
-import { ArrowLeft, Github, ExternalLink, Mail, Linkedin, FileText } from 'lucide-react';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Github, ExternalLink, Mail, Linkedin, FileText, Share2, X, Monitor } from 'lucide-react';
 import { orbitNodes, skillGroups, workExperience, educationData, certifications } from '../data/brainData';
 
 import { ACCENT, MUTED, TEXT } from '../theme';
 
 interface Props { onBack: () => void; showBack?: boolean; }
+
+const canShare = typeof navigator !== 'undefined' && !!navigator.share;
+
+const ShareButton = () => {
+    if (!canShare) return null;
+    return (
+        <button
+            onClick={() => navigator.share({ title: 'Marc Smith — Portfolio', url: window.location.href })}
+            className="flex items-center gap-1.5 font-mono text-[10px] px-3 py-1.5 rounded transition-colors sm:hidden"
+            style={{
+                background: 'rgba(61,227,255,0.06)',
+                border: '1px solid rgba(61,227,255,0.15)',
+                color: MUTED,
+            }}
+        >
+            <Share2 size={11} /> Share
+        </button>
+    );
+};
+
+const DesktopBanner = () => {
+    const [dismissed, setDismissed] = useState(false);
+    const [copied, setCopied] = useState(false);
+
+    const copy = () => {
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        });
+    };
+
+    return (
+        <AnimatePresence>
+            {!dismissed && (
+                <motion.div
+                    className="sm:hidden flex items-center justify-between gap-3 px-4 py-2.5"
+                    style={{
+                        background: 'rgba(61,227,255,0.04)',
+                        borderBottom: '1px solid rgba(61,227,255,0.08)',
+                    }}
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25 }}
+                >
+                    <div className="flex items-center gap-2 min-w-0">
+                        <Monitor size={11} style={{ color: 'rgba(61,227,255,0.5)', flexShrink: 0 }} />
+                        <span className="font-mono text-[10px] truncate" style={{ color: 'rgba(154,176,204,0.6)' }}>
+                            Full interactive experience on desktop
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                        <button
+                            onClick={copy}
+                            className="font-mono text-[10px] px-2.5 py-1 rounded transition-colors"
+                            style={{
+                                background: copied ? 'rgba(61,227,255,0.12)' : 'rgba(61,227,255,0.07)',
+                                border: '1px solid rgba(61,227,255,0.2)',
+                                color: copied ? '#3DE3FF' : 'rgba(154,176,204,0.7)',
+                            }}
+                        >
+                            {copied ? '✓ copied' : 'copy link'}
+                        </button>
+                        <button onClick={() => setDismissed(true)} style={{ color: 'rgba(154,176,204,0.35)' }}>
+                            <X size={13} />
+                        </button>
+                    </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
+};
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
     <p className="font-mono text-[10px] tracking-[0.35em] uppercase mb-5"
@@ -35,25 +108,26 @@ export const RecruiterView = ({ onBack, showBack = true }: Props) => {
         >
             {/* Sticky nav */}
             <div
-                className="sticky top-0 z-50 px-6 py-3 flex items-center justify-between gap-4"
+                className="sticky top-0 z-50 px-4 sm:px-6 py-3 flex items-center justify-between gap-3"
                 style={{
                     background: 'rgba(11,18,32,0.96)',
                     borderBottom: '1px solid rgba(61,227,255,0.08)',
                     backdropFilter: 'blur(14px)',
                 }}
             >
-                <div className="flex items-center gap-4 min-w-0">
+                <div className="flex items-center gap-3 min-w-0">
                     <span className="font-sans font-bold text-text whitespace-nowrap">Marc Smith</span>
                     <span className="font-mono text-[11px] hidden sm:block" style={{ color: MUTED }}>
                         AI/ML Engineer · Full-Stack Developer
                     </span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                    <ShareButton />
                     <a
                         href="/resume.html"
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-1.5 font-mono text-[10px] px-3 py-1.5 rounded transition-colors"
+                        className="flex items-center gap-1.5 font-mono text-[10px] px-3 py-2.5 sm:py-1.5 rounded transition-colors"
                         style={{
                             background: 'rgba(61,227,255,0.06)',
                             border: '1px solid rgba(61,227,255,0.15)',
@@ -65,7 +139,7 @@ export const RecruiterView = ({ onBack, showBack = true }: Props) => {
                     {showBack && (
                         <button
                             onClick={onBack}
-                            className="flex items-center gap-1.5 font-mono text-[10px] px-3 py-1.5 rounded transition-colors hover:text-accent"
+                            className="flex items-center gap-1.5 font-mono text-[10px] px-3 py-2.5 sm:py-1.5 rounded transition-colors hover:text-accent"
                             style={{
                                 background: 'rgba(61,227,255,0.06)',
                                 border: '1px solid rgba(61,227,255,0.15)',
@@ -78,14 +152,16 @@ export const RecruiterView = ({ onBack, showBack = true }: Props) => {
                 </div>
             </div>
 
-            <div className="max-w-3xl mx-auto px-6 py-14 space-y-20">
+            <DesktopBanner />
+
+            <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-14 space-y-14 sm:space-y-20">
 
                 {/* ── Hero ── */}
                 <motion.section {...fadeUp(0)}>
                     <p className="font-mono text-[10px] tracking-[0.4em] uppercase mb-3" style={{ color: ACCENT }}>
                         Portfolio · {new Date().getFullYear()}
                     </p>
-                    <h1 className="font-sans font-bold text-4xl mb-2" style={{ color: TEXT, letterSpacing: '-0.5px' }}>
+                    <h1 className="font-sans font-bold text-3xl sm:text-4xl mb-2" style={{ color: TEXT, letterSpacing: '-0.5px' }}>
                         Marc Smith
                     </h1>
                     <p className="font-mono text-base mb-5" style={{ color: ACCENT }}>
@@ -100,21 +176,21 @@ export const RecruiterView = ({ onBack, showBack = true }: Props) => {
                     <div className="flex flex-wrap gap-2 mt-5">
                         {contact?.links?.email && (
                             <a href={contact.links.email}
-                                className="flex items-center gap-1.5 font-mono text-[11px] px-3 py-1.5 rounded transition-colors text-muted hover:text-accent"
+                                className="flex items-center gap-1.5 font-mono text-[11px] px-4 py-2.5 sm:py-1.5 rounded transition-colors text-muted hover:text-accent"
                                 style={{ background: 'rgba(61,227,255,0.05)', border: '1px solid rgba(61,227,255,0.12)' }}>
                                 <Mail size={12} /> Email
                             </a>
                         )}
                         {contact?.links?.github && (
                             <a href={contact.links.github} target="_blank" rel="noreferrer"
-                                className="flex items-center gap-1.5 font-mono text-[11px] px-3 py-1.5 rounded transition-colors text-muted hover:text-accent"
+                                className="flex items-center gap-1.5 font-mono text-[11px] px-4 py-2.5 sm:py-1.5 rounded transition-colors text-muted hover:text-accent"
                                 style={{ background: 'rgba(61,227,255,0.05)', border: '1px solid rgba(61,227,255,0.12)' }}>
                                 <Github size={12} /> GitHub
                             </a>
                         )}
                         {contact?.links?.linkedin && (
                             <a href={contact.links.linkedin} target="_blank" rel="noreferrer"
-                                className="flex items-center gap-1.5 font-mono text-[11px] px-3 py-1.5 rounded transition-colors text-muted hover:text-accent"
+                                className="flex items-center gap-1.5 font-mono text-[11px] px-4 py-2.5 sm:py-1.5 rounded transition-colors text-muted hover:text-accent"
                                 style={{ background: 'rgba(61,227,255,0.05)', border: '1px solid rgba(61,227,255,0.12)' }}>
                                 <Linkedin size={12} /> LinkedIn
                             </a>
@@ -151,14 +227,14 @@ export const RecruiterView = ({ onBack, showBack = true }: Props) => {
                                     <div className="flex gap-2 shrink-0">
                                         {proj.links?.github && (
                                             <a href={proj.links.github} target="_blank" rel="noreferrer"
-                                                className="flex items-center gap-1 font-mono text-[10px] px-2.5 py-1 rounded transition-colors text-muted hover:text-accent"
+                                                className="flex items-center gap-1 font-mono text-[10px] px-2.5 py-2 sm:py-1 rounded transition-colors text-muted hover:text-accent"
                                                 style={{ background: 'rgba(61,227,255,0.05)', border: '1px solid rgba(61,227,255,0.12)' }}>
                                                 <Github size={11} /> GitHub
                                             </a>
                                         )}
                                         {proj.links?.demo && (
                                             <a href={proj.links.demo} target="_blank" rel="noreferrer"
-                                                className="flex items-center gap-1 font-mono text-[10px] px-2.5 py-1 rounded transition-colors text-muted hover:text-accent"
+                                                className="flex items-center gap-1 font-mono text-[10px] px-2.5 py-2 sm:py-1 rounded transition-colors text-muted hover:text-accent"
                                                 style={{ background: 'rgba(61,227,255,0.05)', border: '1px solid rgba(61,227,255,0.12)' }}>
                                                 <ExternalLink size={11} /> Demo
                                             </a>

@@ -84,7 +84,7 @@ export const Intro = ({ onEnter }: Props) => {
         </div>
 
         <motion.p
-            className="absolute bottom-8 font-mono text-[10px] tracking-widest text-muted/40"
+            className="absolute bottom-8 hidden sm:block font-mono text-[10px] tracking-widest text-muted/40"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 2.2, duration: 0.7 }}
