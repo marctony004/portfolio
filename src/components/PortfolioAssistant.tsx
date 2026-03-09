@@ -127,7 +127,7 @@ const SuggestedPromptRow = ({ prompt, onClick }: { prompt: string; onClick: () =
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export const PortfolioAssistant = ({ tourActive = false, tourHighlightAssistant = false }: { tourActive?: boolean; tourHighlightAssistant?: boolean }) => {
+export const PortfolioAssistant = ({ tourActive = false, tourHighlightAssistant = false, isMobile = false }: { tourActive?: boolean; tourHighlightAssistant?: boolean; isMobile?: boolean }) => {
     const [open, setOpen]         = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput]       = useState('');
@@ -340,7 +340,7 @@ export const PortfolioAssistant = ({ tourActive = false, tourHighlightAssistant 
                 onClick={() => setOpen(o => !o)}
                 className="fixed z-[90] rounded-full flex items-center justify-center"
                 style={{
-                    bottom: '1.25rem',
+                    bottom: isMobile ? '4.5rem' : '1.25rem',
                     right: '1.25rem',
                     width: 50,
                     height: 50,

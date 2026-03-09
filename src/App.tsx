@@ -478,7 +478,7 @@ function App() {
             <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
 
             {/* AI Portfolio Assistant */}
-            {entered && <PortfolioAssistant tourActive={isTourActive} tourHighlightAssistant={tourHighlightEl === 'assistant'} />}
+            {entered && <PortfolioAssistant tourActive={isTourActive} tourHighlightAssistant={tourHighlightEl === 'assistant'} isMobile={isMobile} />}
 
             {/* Brain Sphere — preloads during transition, revealed when phase = 'on' */}
             {/* visibility:hidden keeps the WebGL context alive without showing anything */}
