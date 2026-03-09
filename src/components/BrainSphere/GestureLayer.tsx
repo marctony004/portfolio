@@ -51,26 +51,21 @@ export function GestureLayer({ camRef, focusedNodeIdRef, onGestureSelect }: Prop
 
     return (
         <>
-            {/* ── Always-mounted video/canvas (gesture hook needs these) ── */}
+            {/* ── Always-mounted video (gesture hook needs this as MediaPipe source) ── */}
             <video
                 ref={videoRef} autoPlay muted playsInline
-                style={{
-                    position: 'absolute', bottom: 16, left: 16,
-                    width: 140, height: 105, borderRadius: 8,
-                    transform: 'scaleX(-1)', objectFit: 'cover',
-                    display: perm === 'granted' ? 'block' : 'none',
-                    border: `1px solid ${isActive ? 'rgba(61,227,255,0.4)' : 'rgba(61,227,255,0.15)'}`,
-                    boxShadow: isActive ? '0 0 16px rgba(61,227,255,0.2)' : 'none',
-                }}
+                style={{ display: 'none' }}
             />
+            {/* ── Full-screen hand skeleton overlay ── */}
             <canvas
                 ref={canvasRef}
                 style={{
-                    position: 'absolute', bottom: 16, left: 16,
-                    width: 140, height: 105, borderRadius: 8,
+                    position: 'absolute', inset: 0,
+                    width: '100%', height: '100%',
                     transform: 'scaleX(-1)',
                     display: perm === 'granted' ? 'block' : 'none',
                     pointerEvents: 'none',
+                    opacity: 0.9,
                 }}
             />
 

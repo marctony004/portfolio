@@ -106,29 +106,62 @@ export function useTwoHandGesture() {
 
                 // ── Draw landmarks ─────────────────────────────────────────────
                 if (canvas) {
-                    canvas.width  = video.videoWidth;
-                    canvas.height = video.videoHeight;
+                    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+                        canvas.width  = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                    }
                     const ctx = canvas.getContext('2d');
                     if (ctx) {
                         ctx.clearRect(0, 0, canvas.width, canvas.height);
                         const w = canvas.width, h = canvas.height;
                         const CONN = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],
                                       [0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17]];
-                        results?.landmarks?.forEach((lms: { x: number; y: number }[]) => {
-                            ctx.strokeStyle = 'rgba(61,227,255,0.45)';
-                            ctx.lineWidth   = 1.5;
+                        const FINGERTIPS = [4, 8, 12, 16, 20];
+
+                        results?.landmarks?.forEach((lms: { x: number; y: number }[], handIdx: number) => {
+                            const pinching   = isPinching(lms);
+                            const rawGesture = results.gestures?.[handIdx]?.[0]?.categoryName ?? '';
+                            const gesture    = pinching ? 'pinch' : mapGesture(rawGesture);
+
+                            const lineColor = gesture === 'pinch'      ? 'rgba(255,255,255,0.85)'
+                                            : gesture === 'open_palm'  ? 'rgba(61,227,255,0.6)'
+                                            : 'rgba(154,176,204,0.3)';
+                            const dotColor  = gesture === 'pinch'      ? 'rgba(255,255,255,0.95)'
+                                            : gesture === 'open_palm'  ? 'rgba(61,227,255,0.9)'
+                                            : 'rgba(154,176,204,0.45)';
+
+                            // Skeleton connections
+                            ctx.strokeStyle = lineColor;
+                            ctx.lineWidth   = 2;
+                            ctx.setLineDash([]);
                             for (const [a, b] of CONN) {
                                 ctx.beginPath();
                                 ctx.moveTo(lms[a].x * w, lms[a].y * h);
                                 ctx.lineTo(lms[b].x * w, lms[b].y * h);
                                 ctx.stroke();
                             }
-                            ctx.fillStyle = 'rgba(61,227,255,0.75)';
-                            for (const lm of lms) {
+
+                            // Landmark dots — fingertips larger
+                            for (let i = 0; i < lms.length; i++) {
+                                const lm = lms[i];
+                                ctx.fillStyle = dotColor;
                                 ctx.beginPath();
-                                ctx.arc(lm.x * w, lm.y * h, 3, 0, Math.PI * 2);
+                                ctx.arc(lm.x * w, lm.y * h, FINGERTIPS.includes(i) ? 5 : 3, 0, Math.PI * 2);
                                 ctx.fill();
                             }
+
+                            // Pinch distance indicator — dashed line between thumb and index tip
+                            const thumb = lms[4], index = lms[8];
+                            const dist  = Math.hypot(thumb.x - index.x, thumb.y - index.y);
+                            const pinchProgress = Math.max(0, Math.min(1, 1 - dist / 0.12));
+                            ctx.strokeStyle = `rgba(255,255,255,${0.15 + pinchProgress * 0.75})`;
+                            ctx.lineWidth   = 1 + pinchProgress * 2.5;
+                            ctx.setLineDash([5, 5]);
+                            ctx.beginPath();
+                            ctx.moveTo(thumb.x * w, thumb.y * h);
+                            ctx.lineTo(index.x * w, index.y * h);
+                            ctx.stroke();
+                            ctx.setLineDash([]);
                         });
                     }
                 }
