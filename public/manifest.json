@@ -1,0 +1,18 @@
+{
+  "name": "Marc Smith — AI/ML Engineer",
+  "short_name": "Marc Smith",
+  "description": "Interactive AI/ML engineering portfolio with neural graph visualisation.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B1220",
+  "theme_color": "#0B1220",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

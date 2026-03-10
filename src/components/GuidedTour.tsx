@@ -112,6 +112,7 @@ interface Props {
     isUserExploring: boolean;
     isComplete: boolean;
     alignRight?: boolean; // true = panel sits bottom-right, false = bottom-left
+    isMobile?: boolean;
     onNext: () => void;
     onBack: () => void;
     onPause: () => void;
@@ -130,9 +131,16 @@ const BTN_BASE: React.CSSProperties = {
     transition: 'opacity 0.15s',
 };
 
+const BTN_MOBILE: React.CSSProperties = {
+    ...BTN_BASE,
+    fontSize: 9,
+    padding: '4px 10px',
+    borderRadius: 6,
+};
+
 export function GuidedTour({
     step, stepData, isPaused, isBooting, isUserExploring, isComplete,
-    alignRight = true,
+    alignRight = true, isMobile = false,
     onNext, onBack, onPause, onResume, onExit, onReplay,
 }: Props) {
     const total      = TOUR_STEPS.length;
@@ -140,11 +148,14 @@ export function GuidedTour({
 
     return (
         <motion.div
-            className={`fixed bottom-6 z-[90] ${alignRight ? 'right-4' : 'left-4'}`}
-            style={{ width: 'min(400px, calc(100vw - 32px))' }}
-            initial={{ opacity: 0, y: 28 }}
+            className={isMobile ? 'fixed left-3 right-3 z-[90]' : `fixed bottom-6 z-[90] ${alignRight ? 'right-4' : 'left-4'}`}
+            style={isMobile
+                ? { top: 'calc(env(safe-area-inset-top, 0px) + 12px)' }
+                : { width: 'min(400px, calc(100vw - 32px))' }
+            }
+            initial={{ opacity: 0, y: isMobile ? -20 : 28 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 28 }}
+            exit={{ opacity: 0, y: isMobile ? -20 : 28 }}
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
             role="dialog"
             aria-label="Guided portfolio tour"
@@ -152,9 +163,9 @@ export function GuidedTour({
             <div style={{
                 background: 'rgba(9,15,28,0.96)',
                 border: '1px solid rgba(61,227,255,0.16)',
-                borderRadius: 14,
+                borderRadius: isMobile ? 12 : 14,
                 backdropFilter: 'blur(24px)',
-                padding: '18px 22px',
+                padding: isMobile ? '10px 14px' : '18px 22px',
                 boxShadow: '0 12px 48px rgba(0,0,0,0.55), 0 0 0 1px rgba(61,227,255,0.04)',
             }}>
 
@@ -260,17 +271,17 @@ export function GuidedTour({
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.3 }}
                         >
-                            <p style={{ fontFamily: 'sans-serif', fontWeight: 600, fontSize: 15, color: '#E6EEF9', marginBottom: 6 }}>
+                            <p style={{ fontFamily: 'sans-serif', fontWeight: 600, fontSize: isMobile ? 13 : 15, color: '#E6EEF9', marginBottom: 6 }}>
                                 Tour complete.
                             </p>
-                            <p style={{ fontFamily: 'monospace', fontSize: 11, lineHeight: 1.65, color: 'rgba(154,176,204,0.72)' }}>
+                            <p style={{ fontFamily: 'monospace', fontSize: isMobile ? 10 : 11, lineHeight: 1.65, color: 'rgba(154,176,204,0.72)' }}>
                                 Explore the system — click any node to begin.
                             </p>
                             <div className="flex gap-3 mt-4">
                                 <button
                                     onClick={onReplay}
                                     style={{
-                                        ...BTN_BASE,
+                                        ...(isMobile ? BTN_MOBILE : BTN_BASE),
                                         flex: 1,
                                         background: 'rgba(61,227,255,0.08)',
                                         border: '1px solid rgba(61,227,255,0.22)',
@@ -282,7 +293,7 @@ export function GuidedTour({
                                 <button
                                     onClick={onExit}
                                     style={{
-                                        ...BTN_BASE,
+                                        ...(isMobile ? BTN_MOBILE : BTN_BASE),
                                         flex: 1,
                                         background: 'rgba(154,176,204,0.05)',
                                         border: '1px solid rgba(154,176,204,0.12)',
@@ -303,17 +314,17 @@ export function GuidedTour({
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.3 }}
                         >
-                            <p style={{ fontFamily: 'sans-serif', fontWeight: 600, fontSize: 15, color: '#E6EEF9', marginBottom: 6 }}>
+                            <p style={{ fontFamily: 'sans-serif', fontWeight: 600, fontSize: isMobile ? 13 : 15, color: '#E6EEF9', marginBottom: 6 }}>
                                 Tour paused while you explore.
                             </p>
-                            <p style={{ fontFamily: 'monospace', fontSize: 11, color: 'rgba(154,176,204,0.62)' }}>
+                            <p style={{ fontFamily: 'monospace', fontSize: isMobile ? 10 : 11, color: 'rgba(154,176,204,0.62)' }}>
                                 Click Resume to continue from where you left off.
                             </p>
                             <div className="flex gap-3 mt-4">
                                 <button
                                     onClick={onResume}
                                     style={{
-                                        ...BTN_BASE,
+                                        ...(isMobile ? BTN_MOBILE : BTN_BASE),
                                         flex: 1,
                                         background: 'rgba(61,227,255,0.1)',
                                         border: '1px solid rgba(61,227,255,0.26)',
@@ -325,7 +336,7 @@ export function GuidedTour({
                                 <button
                                     onClick={onExit}
                                     style={{
-                                        ...BTN_BASE,
+                                        ...(isMobile ? BTN_MOBILE : BTN_BASE),
                                         background: 'transparent',
                                         border: '1px solid rgba(154,176,204,0.12)',
                                         color: 'rgba(154,176,204,0.45)',
@@ -345,15 +356,15 @@ export function GuidedTour({
                             exit={{ opacity: 0, x: -12 }}
                             transition={{ duration: 0.28, ease: 'easeOut' }}
                         >
-                            <p style={{ fontFamily: 'sans-serif', fontWeight: 600, fontSize: 15, color: '#E6EEF9', marginBottom: 7 }}>
+                            <p style={{ fontFamily: 'sans-serif', fontWeight: 600, fontSize: isMobile ? 13 : 15, color: '#E6EEF9', marginBottom: isMobile ? 4 : 7 }}>
                                 {stepData.title}
                             </p>
-                            <p style={{ fontFamily: 'monospace', fontSize: 11, lineHeight: 1.7, color: 'rgba(154,176,204,0.78)' }}>
+                            <p style={{ fontFamily: 'monospace', fontSize: isMobile ? 10 : 11, lineHeight: 1.7, color: 'rgba(154,176,204,0.78)' }}>
                                 {stepData.caption}
                             </p>
 
                             {/* Brain Sphere / Focus Mode steps — mini sphere preview */}
-                            {(stepData.id === 'brain-sphere' || stepData.id === 'focus-mode') && (
+                            {!isMobile && (stepData.id === 'brain-sphere' || stepData.id === 'focus-mode') && (
                                 <motion.div
                                     initial={{ opacity: 0, y: 6 }}
                                     animate={{ opacity: 1, y: 0 }}
@@ -372,7 +383,7 @@ export function GuidedTour({
                             )}
 
                             {/* Step 1 — identity: animated connection tree */}
-                            {stepData.id === 'identity' && (
+                            {!isMobile && stepData.id === 'identity' && (
                                 <motion.div
                                     style={{
                                         fontFamily: 'monospace',
@@ -400,20 +411,20 @@ export function GuidedTour({
                                 </motion.div>
                             )}
 
-                            {stepData.subline && (
+                            {(stepData.subline || stepData.sublineMobile) && (
                                 <p style={{ fontFamily: 'monospace', fontSize: 10, lineHeight: 1.6, color: 'rgba(61,227,255,0.45)', marginTop: 6 }}>
-                                    {stepData.subline}
+                                    {isMobile && stepData.sublineMobile ? stepData.sublineMobile : stepData.subline}
                                 </p>
                             )}
 
                             {/* Controls row */}
-                            <div className="flex items-center justify-between mt-4">
+                            <div className="flex items-center justify-between" style={{ marginTop: isMobile ? 8 : 16 }}>
                                 {/* Step dots */}
                                 <div className="flex items-center gap-1">
                                     {TOUR_STEPS.map((_, i) => (
                                         <div key={i} style={{
-                                            width:        i === step ? 18 : 5,
-                                            height:       5,
+                                            width:        i === step ? (isMobile ? 14 : 18) : (isMobile ? 4 : 5),
+                                            height:       isMobile ? 4 : 5,
                                             borderRadius: 3,
                                             background:   i < step
                                                 ? 'rgba(61,227,255,0.45)'
@@ -432,7 +443,7 @@ export function GuidedTour({
                                         disabled={step === 0}
                                         aria-label="Previous step"
                                         style={{
-                                            ...BTN_BASE,
+                                            ...(isMobile ? BTN_MOBILE : BTN_BASE),
                                             background: 'rgba(154,176,204,0.05)',
                                             border: '1px solid rgba(154,176,204,0.1)',
                                             color: step === 0 ? 'rgba(154,176,204,0.18)' : 'rgba(154,176,204,0.55)',
@@ -445,7 +456,7 @@ export function GuidedTour({
                                         onClick={isPaused ? onResume : onPause}
                                         aria-label={isPaused ? 'Resume auto-advance' : 'Pause auto-advance'}
                                         style={{
-                                            ...BTN_BASE,
+                                            ...(isMobile ? BTN_MOBILE : BTN_BASE),
                                             background: 'rgba(154,176,204,0.05)',
                                             border: '1px solid rgba(154,176,204,0.1)',
                                             color: 'rgba(154,176,204,0.55)',
@@ -457,7 +468,7 @@ export function GuidedTour({
                                         onClick={onNext}
                                         aria-label={isLastStep ? 'Finish tour' : 'Next step'}
                                         style={{
-                                            ...BTN_BASE,
+                                            ...(isMobile ? BTN_MOBILE : BTN_BASE),
                                             background: 'rgba(61,227,255,0.1)',
                                             border: '1px solid rgba(61,227,255,0.24)',
                                             color: '#3DE3FF',

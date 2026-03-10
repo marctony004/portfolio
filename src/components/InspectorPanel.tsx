@@ -27,9 +27,10 @@ export const InspectorPanel = ({ node, onClose, onBreadcrumb, isMobile = false }
 
     const [activeStep, setActiveStep] = useState(0);
     const [copied, setCopied]         = useState(false);
+    const [expanded, setExpanded]     = useState(false);
 
-    // Reset active step when node changes
-    useEffect(() => { setActiveStep(0); }, [node?.id]);
+    // Reset state when node changes
+    useEffect(() => { setActiveStep(0); setExpanded(false); }, [node?.id]);
 
     const handleCopyPipeline = () => {
         if (!pipeline) return;
@@ -231,22 +232,26 @@ export const InspectorPanel = ({ node, onClose, onBreadcrumb, isMobile = false }
         <AnimatePresence>
             {node && (
                 isMobile ? (
-                    /* ── Mobile: bottom sheet ── */
+                    /* ── Mobile: bottom sheet (peek → expand) ── */
                     <motion.div
                         key={node.id}
                         drag="y"
                         dragControls={dragControls}
                         dragListener={false}
                         dragConstraints={{ top: 0, bottom: 0 }}
-                        dragElastic={{ top: 0, bottom: 0.4 }}
+                        dragElastic={{ top: 0.12, bottom: 0.4 }}
                         onDragEnd={(_, info) => {
-                            if (info.offset.y > 80 || info.velocity.y > 500) onClose();
+                            if (expanded) {
+                                if (info.offset.y > 100 || info.velocity.y > 400) setExpanded(false);
+                            } else {
+                                if (info.offset.y < -40 || info.velocity.y < -300) setExpanded(true);
+                                else if (info.offset.y > 60 || info.velocity.y > 400) onClose();
+                            }
                         }}
                         style={{
                             position: 'fixed',
                             bottom: TAB_BAR_H,
                             left: 0, right: 0,
-                            height: '72vh',
                             zIndex: 60,
                             borderRadius: '16px 16px 0 0',
                             background: 'rgba(17,26,46,0.96)',
@@ -256,18 +261,31 @@ export const InspectorPanel = ({ node, onClose, onBreadcrumb, isMobile = false }
                             display: 'flex',
                             flexDirection: 'column',
                             borderTop: '1px solid rgba(61,227,255,0.12)',
+                            overflow: 'hidden',
                         }}
-                        initial={{ y: '100%' }}
-                        animate={{ y: 0 }}
-                        exit={{ y: '100%' }}
+                        initial={{ height: 0 }}
+                        animate={{ height: expanded ? '82vh' : 160 }}
+                        exit={{ height: 0 }}
                         transition={{ type: 'spring', damping: 28, stiffness: 260 }}
                     >
-                        {/* Drag handle — only this area initiates drag */}
+                        {/* Drag handle — tap to expand/collapse, drag to resize or close */}
                         <div
-                            className="shrink-0 flex items-center justify-center pt-3 pb-1 cursor-grab active:cursor-grabbing"
+                            className="shrink-0 flex flex-col items-center pt-3 pb-1 cursor-grab active:cursor-grabbing gap-1.5"
                             onPointerDown={e => dragControls.start(e)}
+                            onClick={() => setExpanded(v => !v)}
                         >
-                            <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(61,227,255,0.18)' }} />
+                            <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(61,227,255,0.22)' }} />
+                            <AnimatePresence>
+                                {!expanded && (
+                                    <motion.p
+                                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                        transition={{ delay: 0.3, duration: 0.2 }}
+                                        style={{ fontFamily: 'monospace', fontSize: 8, letterSpacing: '0.18em', color: 'rgba(61,227,255,0.35)', userSelect: 'none' }}
+                                    >
+                                        SWIPE UP FOR DETAILS
+                                    </motion.p>
+                                )}
+                            </AnimatePresence>
                         </div>
 
                         {/* Header */}

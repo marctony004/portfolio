@@ -20,12 +20,12 @@ export const Intro = ({ onEnter }: Props) => {
         transition={{ duration: 0.8, ease: 'easeInOut' }}
     >
         {/* Corner brackets */}
-        {[['top-8 left-8', 'border-t-2 border-l-2'],
-          ['top-8 right-8', 'border-t-2 border-r-2'],
-          ['bottom-8 left-8', 'border-b-2 border-l-2'],
-          ['bottom-8 right-8', 'border-b-2 border-r-2']
+        {[['top-4 left-4 sm:top-8 sm:left-8', 'border-t-2 border-l-2'],
+          ['top-4 right-4 sm:top-8 sm:right-8', 'border-t-2 border-r-2'],
+          ['bottom-4 left-4 sm:bottom-8 sm:left-8', 'border-b-2 border-l-2'],
+          ['bottom-4 right-4 sm:bottom-8 sm:right-8', 'border-b-2 border-r-2']
         ].map(([pos, border], i) => (
-            <div key={i} className={`absolute ${pos} w-8 h-8 ${border} border-accent/25`} />
+            <div key={i} className={`absolute ${pos} w-6 h-6 sm:w-8 sm:h-8 ${border} border-accent/25`} />
         ))}
 
         {/* Radial glow */}
@@ -56,7 +56,8 @@ export const Intro = ({ onEnter }: Props) => {
             </motion.h1>
 
             <motion.p
-                className="font-mono text-accent text-base tracking-widest mb-16"
+                className="font-mono text-accent tracking-widest mb-8 sm:mb-16"
+                style={{ fontSize: 'clamp(0.7rem, 3vw, 1rem)' }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 1.2, duration: 0.7 }}

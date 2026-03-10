@@ -4,6 +4,7 @@ export interface TourStep {
     targetNodeId: string | null; // null = center node (deselect all)
     caption: string;
     subline?: string;
+    sublineMobile?: string; // overrides subline on mobile
     duration: number; // ms
 }
 
@@ -35,6 +36,7 @@ export const TOUR_STEPS: TourStep[] = [
         targetNodeId: null,
         caption: 'For deeper exploration, the Brain Sphere reveals system architecture and the relationships between technologies.',
         subline: '↑ Open via the Brain Sphere button in the top left.',
+        sublineMobile: '↓ Tap Brain Sphere in the More menu below.',
         duration: 6000,
     },
     {
@@ -59,6 +61,7 @@ export const TOUR_STEPS: TourStep[] = [
         targetNodeId: null,
         caption: 'Recruiter View provides a simplified overview of my experience, projects, and technical skills. You can also find my full resume there.',
         subline: '↑ Open via the Recruiter View button in the top left.',
+        sublineMobile: '↓ Tap RESUME in the tab bar below.',
         duration: 6000,
     },
     {

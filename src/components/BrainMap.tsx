@@ -377,9 +377,22 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
         setTimeout(() => onSelect({ ...data, id } as SelectedNode), 350);
     };
 
+    const lastBgTapRef = useRef(0);
+
+    const doResetCamera = useCallback(() => {
+        cameraRef.current = { x: 0, y: 0, scale: 1 };
+        cameraControls.start({ x: 0, y: 0, scale: 1, opacity: 1,
+            transition: { duration: 0.65, ease: [0.25, 0.46, 0.45, 0.94] } });
+    }, [cameraControls]);
+
     const handleBgClick = () => {
         if (tourActive) return;
         if (isMobile && isPanningRef.current) return; // pan gesture ended — don't deselect
+        if (isMobile) {
+            const now = Date.now();
+            if (now - lastBgTapRef.current < 350) doResetCamera(); // double-tap to reset
+            lastBgTapRef.current = now;
+        }
         onSelect(null);
         setExpanded(false);
         setKbFocus(null);
@@ -420,6 +433,30 @@ export const BrainMap = ({ onSelect, selectedId, jumpTo, onJumpDone, paletteOpen
 
             {/* Capability filter chips — desktop only */}
             {!isMobile && <CapabilityChips active={activeFilter} onToggle={(cap) => setActiveFilter(cap)} />}
+
+            {/* Mobile reset button — centered above inspector peek */}
+            {isMobile && !tourActive && (
+                <motion.button
+                    onClick={(e) => { e.stopPropagation(); doResetCamera(); onSelectRef.current(null); setExpanded(false); }}
+                    className="absolute font-mono text-[9px] tracking-widest"
+                    style={{
+                        bottom: 12, left: '50%', transform: 'translateX(-50%)',
+                        background: 'rgba(11,18,32,0.75)',
+                        border: '1px solid rgba(61,227,255,0.1)',
+                        borderRadius: 20,
+                        padding: '5px 14px',
+                        color: 'rgba(154,176,204,0.35)',
+                        backdropFilter: 'blur(8px)',
+                        zIndex: 10,
+                        whiteSpace: 'nowrap',
+                    }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 2 }}
+                >
+                    ⊙ reset view
+                </motion.button>
+            )}
 
             {/* Keyboard nav hint */}
             <AnimatePresence>

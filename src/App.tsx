@@ -58,6 +58,14 @@ function App() {
         return () => window.removeEventListener('resize', check);
     }, []);
 
+    // Tour-driven More sheet: auto-open on brain-sphere step, close otherwise
+    useEffect(() => {
+        if (!isMobile || !isTourActive) return;
+        const stepId = TOUR_STEPS[tourStep]?.id;
+        if (stepId === 'brain-sphere') setMoreOpen(true);
+        else setMoreOpen(false);
+    }, [isMobile, isTourActive, tourStep]);
+
     // "/" key opens command palette; Escape closes inspector / tour
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -241,6 +249,10 @@ function App() {
         return undefined;
     })();
 
+    // Mobile tour glow flags
+    const tourGlowSphere = isMobile && isTourActive && !isUserExploring && TOUR_STEPS[tourStep]?.id === 'brain-sphere';
+    const tourGlowResume = isMobile && isTourActive && !isUserExploring && TOUR_STEPS[tourStep]?.id === 'recruiter';
+
     // Which nav element to highlight during tour — null when not applicable
     const tourHighlightEl = (() => {
         if (!isTourActive || isTourBooting || isTourComplete || isUserExploring) return null;
@@ -334,22 +346,36 @@ function App() {
                                         <Network size={15} />
                                         MAP
                                     </button>
-                                    <button
+                                    <motion.button
                                         onClick={() => setMobileView('resume')}
                                         className="flex-1 flex flex-col items-center justify-center gap-0.5 font-mono text-[9px] tracking-widest transition-colors"
-                                        style={{ color: mobileView === 'resume' ? '#3DE3FF' : 'rgba(154,176,204,0.4)' }}
+                                        style={{ color: mobileView === 'resume' ? '#3DE3FF' : tourGlowResume ? '#3DE3FF' : 'rgba(154,176,204,0.4)', position: 'relative' }}
+                                        animate={tourGlowResume ? { textShadow: ['0 0 0px #3DE3FF', '0 0 8px #3DE3FF', '0 0 0px #3DE3FF'] } : {}}
+                                        transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
                                     >
-                                        <FileTextIcon size={15} />
+                                        <motion.div
+                                            animate={tourGlowResume ? { filter: ['drop-shadow(0 0 0px #3DE3FF)', 'drop-shadow(0 0 6px #3DE3FF)', 'drop-shadow(0 0 0px #3DE3FF)'] } : {}}
+                                            transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                                        >
+                                            <FileTextIcon size={15} />
+                                        </motion.div>
                                         RESUME
-                                    </button>
-                                    <button
+                                    </motion.button>
+                                    <motion.button
                                         onClick={() => setMoreOpen(true)}
-                                        className="flex-1 flex flex-col items-center justify-center gap-0.5 font-mono text-[9px] tracking-widest transition-colors"
-                                        style={{ color: 'rgba(154,176,204,0.4)' }}
+                                        className="flex-1 flex flex-col items-center justify-center gap-0.5 font-mono text-[9px] tracking-widest"
+                                        style={{ color: tourGlowSphere ? '#3DE3FF' : 'rgba(154,176,204,0.4)' }}
+                                        animate={tourGlowSphere ? { textShadow: ['0 0 0px #3DE3FF', '0 0 8px #3DE3FF', '0 0 0px #3DE3FF'] } : {}}
+                                        transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
                                     >
-                                        <MoreHorizontal size={15} />
+                                        <motion.div
+                                            animate={tourGlowSphere ? { filter: ['drop-shadow(0 0 0px #3DE3FF)', 'drop-shadow(0 0 6px #3DE3FF)', 'drop-shadow(0 0 0px #3DE3FF)'] } : {}}
+                                            transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                                        >
+                                            <MoreHorizontal size={15} />
+                                        </motion.div>
                                         MORE
-                                    </button>
+                                    </motion.button>
                                 </div>
 
                                 {/* More sheet — backdrop */}
@@ -417,23 +443,32 @@ function App() {
                                                 </button>
 
                                                 {/* Brain Sphere */}
-                                                <button
+                                                <motion.button
                                                     onClick={() => { setMoreOpen(false); handleOpenSphere(); }}
                                                     disabled={spherePhase !== 'off'}
                                                     className="w-full flex items-center gap-3 px-4 py-3.5 rounded-lg font-mono text-sm transition-colors text-left"
                                                     style={{
-                                                        background: 'rgba(61,227,255,0.04)',
+                                                        background: tourGlowSphere ? 'rgba(61,227,255,0.08)' : 'rgba(61,227,255,0.04)',
                                                         border: '1px solid rgba(61,227,255,0.12)',
                                                         color: spherePhase !== 'off' ? 'rgba(154,176,204,0.3)' : 'rgba(154,176,204,0.8)',
                                                         opacity: spherePhase !== 'off' ? 0.5 : 1,
                                                     }}
+                                                    animate={tourGlowSphere ? {
+                                                        boxShadow: [
+                                                            '0 0 0px rgba(61,227,255,0)',
+                                                            '0 0 16px rgba(61,227,255,0.4), inset 0 0 12px rgba(61,227,255,0.06)',
+                                                            '0 0 0px rgba(61,227,255,0)',
+                                                        ],
+                                                        borderColor: ['rgba(61,227,255,0.12)', 'rgba(61,227,255,0.55)', 'rgba(61,227,255,0.12)'],
+                                                    } : {}}
+                                                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
                                                 >
                                                     <span style={{ color: '#3DE3FF', fontSize: 16 }}>◉</span>
                                                     <div>
                                                         <p className="text-sm font-medium" style={{ color: spherePhase !== 'off' ? 'rgba(230,238,249,0.4)' : '#E6EEF9' }}>Brain Sphere</p>
                                                         <p className="text-[10px] font-mono mt-0.5" style={{ color: 'rgba(154,176,204,0.45)' }}>3D neural visualisation</p>
                                                     </div>
-                                                </button>
+                                                </motion.button>
                                             </div>
                                         </motion.div>
                                     )}
@@ -632,9 +667,9 @@ function App() {
                 )}
             </AnimatePresence>
 
-            {/* Guided tour panel */}
+            {/* Guided tour panel — hidden when user manually opens inspector on mobile */}
             <AnimatePresence>
-                {isTourActive && (
+                {isTourActive && !(isMobile && selected && isUserExploring) && (
                     <GuidedTour
                         key={tourStep === 0 ? 'tour-right' : 'tour-left'}
                         step={tourStep}
@@ -644,6 +679,7 @@ function App() {
                         isUserExploring={isUserExploring}
                         isComplete={isTourComplete}
                         alignRight={tourStep === 0}
+                        isMobile={isMobile}
                         onNext={handleTourNext}
                         onBack={handleTourBack}
                         onPause={handleTourPause}
