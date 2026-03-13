@@ -1,13 +1,15 @@
+import { useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Github, ExternalLink, Mail, Linkedin } from 'lucide-react';
 import { ACCENT, MUTED, TEXT } from '../../theme';
 import type { SphereNodeData } from '../../data/sphereGraph';
 
 interface Props {
-    node:           SphereNodeData | null;
-    onClose:        () => void;
-    onEnterFocus?:  () => void;
-    relatedLabels?: string[];
+    node:            SphereNodeData | null;
+    onClose:         () => void;
+    onEnterFocus?:   () => void;
+    relatedLabels?:  string[];
+    scrollTrigger?:  number;  // increment to scroll content down (double-pinch gesture)
 }
 
 const NODE_TYPE_LABEL: Record<SphereNodeData['nodeType'], string> = {
@@ -28,8 +30,15 @@ const linkStyle = {
 const linkHover  = (e: React.MouseEvent<HTMLAnchorElement>) => { e.currentTarget.style.color = ACCENT; e.currentTarget.style.borderColor = 'rgba(61,227,255,0.32)'; };
 const linkUnhover = (e: React.MouseEvent<HTMLAnchorElement>) => { e.currentTarget.style.color = MUTED; e.currentTarget.style.borderColor = 'rgba(61,227,255,0.14)'; };
 
-export function SphereInspector({ node, onClose, onEnterFocus, relatedLabels }: Props) {
-    const isProject = node?.nodeType === 'project';
+export function SphereInspector({ node, onClose, onEnterFocus, relatedLabels, scrollTrigger }: Props) {
+    const isProject  = node?.nodeType === 'project';
+    const scrollRef  = useRef<HTMLDivElement>(null);
+
+    // Double-pinch gesture scrolls the inspector panel down
+    useEffect(() => {
+        if (!scrollTrigger || !scrollRef.current) return;
+        scrollRef.current.scrollBy({ top: 130, behavior: 'smooth' });
+    }, [scrollTrigger]);
 
     return (
         <AnimatePresence>
@@ -105,6 +114,7 @@ export function SphereInspector({ node, onClose, onEnterFocus, relatedLabels }: 
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={node.id}
+                            ref={scrollRef}
                             className="flex-1 overflow-y-auto px-5 py-5 space-y-6"
                             style={{ scrollbarWidth: 'none' }}
                             initial={{ opacity: 0, y: 10 }}

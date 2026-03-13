@@ -16,6 +16,11 @@ const INITIAL_CAM: CamState = {
     targetTheta: 0, targetPhi: 1.18, targetDistance: 6.5,
 };
 
+const INITIAL_FOCUS_CAM: CamState = {
+    theta: 0, phi: 1.22, distance: 7.5,
+    targetTheta: 0, targetPhi: 1.22, targetDistance: 7.5,
+};
+
 const PREFERS_REDUCED = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const WAVE_STAGGER = 85;
@@ -34,9 +39,10 @@ const WAVE_DELAYS: Map<string, number> = (() => {
 interface Props { onClose: () => void; runWave?: boolean; }
 
 const BrainSphere = ({ onClose, runWave = false }: Props) => {
-    const [selectedId,  setSelectedId]  = useState<string | null>(null);
-    const [expandedId,  setExpandedId]  = useState<string | null>(null);
-    const [focusModeId, setFocusModeId] = useState<string | null>(null);
+    const [selectedId,            setSelectedId]            = useState<string | null>(null);
+    const [expandedId,            setExpandedId]            = useState<string | null>(null);
+    const [focusModeId,           setFocusModeId]           = useState<string | null>(null);
+    const [inspectorScrollTrigger, setInspectorScrollTrigger] = useState(0);
     const [waveActive,       setWaveActive]       = useState(false);
     const [depthVeilVisible, setDepthVeilVisible] = useState(false);
     const [isIdle,           setIsIdle]           = useState(false);
@@ -119,6 +125,8 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
 
     // Camera state — written by mouse/gesture/focus, read by SphereScene useFrame
     const camRef                  = useRef<CamState>({ ...INITIAL_CAM });
+    // Focus Mode camera — lifted here so GestureLayer can control it when in focus mode
+    const focusCamRef             = useRef<CamState>({ ...INITIAL_FOCUS_CAM });
     const focusedNodeIdRef        = useRef<string | null>(null);
     const focusedNodeScreenPosRef = useRef<{ x: number; y: number } | null>(null);
     const focusedNodeLabelRef     = useRef<string | null>(null);
@@ -294,11 +302,25 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
     // renders nothing behind the Focus Mode overlay (prevents WebGL bleed-through).
     const handleEnterFocusMode = useCallback((nodeId: string) => {
         savedConstellationRef.current = { expandedId, selectedId };
-        setExpandedId(null);  // collapse constellation — hides sibling project nodes
-        setSelectedId(null);  // close inspector panel
+        setExpandedId(null);
+        setSelectedId(null);
         setFocusModeId(nodeId);
+        // Reset focus camera to initial position for each new focus session
+        focusCamRef.current = { theta: 0, phi: 1.22, distance: 7.5, targetTheta: 0, targetPhi: 1.22, targetDistance: 7.5 };
         resetIdleTimer();
     }, [expandedId, selectedId, resetIdleTimer]);
+
+    // Victory (✌) — enter focus mode on the currently selected project node
+    const handleGestureVictory = useCallback(() => {
+        if (!selectedId) return;
+        const node = sphereNodes.find(n => n.id === selectedId);
+        if (node?.nodeType === 'project') handleEnterFocusMode(selectedId);
+    }, [selectedId, handleEnterFocusMode]);
+
+    // Double pinch — scroll the inspector panel content
+    const handleGestureDoublePinch = useCallback(() => {
+        setInspectorScrollTrigger(n => n + 1);
+    }, []);
 
     // Exiting: trigger the Focus Mode exit animation, then restore the constellation
     // after the animation fully completes (matches FocusMode transition duration: 0.55s).
@@ -310,6 +332,11 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
             setSelectedId(saved.selectedId);
         }, 580);
     }, []);
+
+    // Swipe — exit focus mode if currently active
+    const handleGestureSwipe = useCallback(() => {
+        if (focusModeId) handleExitFocusMode();
+    }, [focusModeId, handleExitFocusMode]);
 
     // ── Keyboard ──────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -439,17 +466,6 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
                     transition={{ duration: 2.4, ease: [0.25, 0.46, 0.45, 0.94], delay: 0.3 }}
                 />
 
-                {/* Gesture overlay */}
-                <GestureLayer
-                    camRef={camRef}
-                    focusedNodeIdRef={focusedNodeIdRef}
-                    focusedNodeScreenPosRef={focusedNodeScreenPosRef}
-                    focusedNodeLabelRef={focusedNodeLabelRef}
-                    gestureCursorRef={gestureCursorRef}
-                    onGestureSelect={handleGestureSelect}
-                    onGestureClose={handleGestureClose}
-                />
-
                 {/* Inspector panel */}
                 <SphereInspector
                     node={selectedNode}
@@ -460,6 +476,7 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
                             : undefined
                     }
                     relatedLabels={relatedLabels}
+                    scrollTrigger={inspectorScrollTrigger}
                 />
 
                 {/* Bottom-right hint */}
@@ -469,6 +486,25 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
                     </p>
                 </div>
             </div>
+            {/* ── Gesture overlay — lives outside visibility:hidden so it persists in focus mode ── */}
+            {/* pointer-events:none lets mouse events fall through to the sphere canvas;
+                GestureLayer's interactive buttons override this with pointerEvents:'auto' */}
+            <div className="absolute inset-0" style={{ zIndex: 130, pointerEvents: 'none' }}>
+                <GestureLayer
+                    camRef={focusModeId ? focusCamRef : camRef}
+                    focusedNodeIdRef={focusedNodeIdRef}
+                    focusedNodeScreenPosRef={focusedNodeScreenPosRef}
+                    focusedNodeLabelRef={focusedNodeLabelRef}
+                    gestureCursorRef={gestureCursorRef}
+                    isInFocusMode={!!focusModeId}
+                    onGestureSelect={handleGestureSelect}
+                    onGestureClose={handleGestureClose}
+                    onGestureVictory={handleGestureVictory}
+                    onGestureDoublePinch={handleGestureDoublePinch}
+                    onGestureSwipe={handleGestureSwipe}
+                />
+            </div>
+
             {/* ── Focus Mode overlay ─────────────────────────────────────────── */}
             <AnimatePresence>
                 {focusModeId && (
@@ -476,6 +512,7 @@ const BrainSphere = ({ onClose, runWave = false }: Props) => {
                         key={focusModeId}
                         projectId={focusModeId}
                         onExit={handleExitFocusMode}
+                        camRef={focusCamRef}
                     />
                 )}
             </AnimatePresence>

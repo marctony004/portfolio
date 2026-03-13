@@ -1,32 +1,44 @@
 import { useRef, useState, useCallback } from 'react';
 
-export type HandGesture = 'open_palm' | 'fist' | 'pinch' | 'none';
+export type HandGesture = 'open_palm' | 'fist' | 'pinch' | 'victory' | 'none';
 
 export interface HandData {
-    landmarks: { x: number; y: number; z: number }[];
-    gesture: HandGesture;
-    wrist: { x: number; y: number };
+    landmarks:  { x: number; y: number; z: number }[];
+    gesture:    HandGesture;
+    wrist:      { x: number; y: number };
+    handedness: 'Left' | 'Right';
 }
 
 export interface TwoHandState {
-    hands: HandData[];
-    rotationDelta: { dx: number; dy: number };
-    zoomDelta: number;
-    freshPinch: boolean;   // true only on the single frame when pinch first fires
-    freshFist:  boolean;   // true only on the single frame when fist first fires (close gesture)
-    isActive: boolean;     // true when both hands are in open-palm control mode
+    hands:            HandData[];
+    rotationDelta:    { dx: number; dy: number };
+    zoomDelta:        number;
+    freshPinch:       boolean;   // rising edge: any pinch fires
+    freshRightFist:   boolean;   // rising edge: RIGHT fist → close inspector
+    leftFistHeld:     boolean;   // continuous: LEFT fist held → lock sphere + suppress targeting
+    freshVictory:     boolean;   // rising edge: Victory ✌ → focus mode
+    freshDoublePinch: boolean;   // second pinch within window → scroll inspector
+    pinchProgress:    number;    // 0-1 proximity to pinch threshold
+    swipeDetected:    boolean;   // fast horizontal swipe → dismiss focus mode
+    isActive:         boolean;   // both hands open palm = controlling
 }
 
-const PINCH_DIST     = 0.06;
-const ROT_SCALE      = 3.8;
-const ZOOM_SCALE     = 7.0;
-const ALPHA          = 0.28;   // EWMA smoothing (lower = smoother but laggier)
-const PINCH_COOLDOWN = 700;    // ms between pinch events
-const FIST_COOLDOWN  = 900;    // ms between fist (close) events
+const PINCH_DIST          = 0.06;
+const ROT_SCALE           = 3.8;
+const ZOOM_SCALE          = 7.0;
+const ALPHA               = 0.28;   // EWMA smoothing (lower = smoother but laggier)
+const PINCH_COOLDOWN      = 600;    // ms between pinch events
+const DOUBLE_PINCH_WINDOW = 1100;   // ms — second pinch within this window after the first = double
+const FIST_COOLDOWN       = 900;    // ms between fist (close) events
+const VICTORY_COOLDOWN    = 900;    // ms between victory (✌) events
+const SWIPE_BUFFER_LEN    = 7;     // frames to accumulate for swipe detection
+const SWIPE_THRESH        = 0.22;  // total x displacement over buffer to count as swipe
+const SWIPE_COOLDOWN      = 1500;  // ms between swipe events
 
 function mapGesture(raw: string): HandGesture {
     if (raw === 'Open_Palm' || raw === 'Thumb_Up') return 'open_palm';
     if (raw === 'Closed_Fist')                      return 'fist';
+    if (raw === 'Victory')                           return 'victory';
     return 'none';
 }
 
@@ -40,7 +52,10 @@ export function useTwoHandGesture() {
 
     const [isLoading,     setIsLoading]     = useState(false);
     const [twoHandState,  setTwoHandState]  = useState<TwoHandState>({
-        hands: [], rotationDelta: { dx: 0, dy: 0 }, zoomDelta: 0, freshPinch: false, freshFist: false, isActive: false,
+        hands: [], rotationDelta: { dx: 0, dy: 0 }, zoomDelta: 0,
+        freshPinch: false, freshRightFist: false, leftFistHeld: false,
+        freshVictory: false, freshDoublePinch: false,
+        pinchProgress: 0, swipeDetected: false, isActive: false,
     });
 
     const recognizerRef  = useRef<unknown>(null);
@@ -54,8 +69,12 @@ export function useTwoHandGesture() {
     const prevSpreadRef  = useRef<number | null>(null);
     const wasPinchRef    = useRef(false);
     const lastPinchRef   = useRef(0);
-    const wasFistRef     = useRef(false);
-    const lastFistRef    = useRef(0);
+    const wasVictoryRef  = useRef(false);
+    const lastVictoryRef = useRef(0);
+    const wasRightFistRef  = useRef(false);
+    const lastRightFistRef = useRef(0);
+    const wristXBufRef     = useRef<number[]>([]);
+    const lastSwipeRef     = useRef(0);
 
     const stop = useCallback(() => {
         runningRef.current = false;
@@ -176,14 +195,17 @@ export function useTwoHandGesture() {
 
                 if (results?.landmarks?.length > 0) {
                     for (let h = 0; h < results.landmarks.length; h++) {
-                        const lms  = results.landmarks[h] as { x: number; y: number; z: number }[];
-                        const pinch = isPinching(lms);
+                        const lms        = results.landmarks[h] as { x: number; y: number; z: number }[];
+                        const pinch      = isPinching(lms);
                         if (pinch) anyPinch = true;
-                        const rawGesture = results.gestures?.[h]?.[0]?.categoryName ?? '';
+                        const rawGesture  = results.gestures?.[h]?.[0]?.categoryName ?? '';
+                        const rawHanded   = results.handedness?.[h]?.[0]?.categoryName ?? 'Right';
+                        const handedness: 'Left' | 'Right' = rawHanded === 'Left' ? 'Left' : 'Right';
                         hands.push({
-                            landmarks: lms,
-                            gesture:   pinch ? 'pinch' : mapGesture(rawGesture),
-                            wrist:     { x: lms[0].x, y: lms[0].y },
+                            landmarks:  lms,
+                            gesture:    pinch ? 'pinch' : mapGesture(rawGesture),
+                            wrist:      { x: lms[0].x, y: lms[0].y },
+                            handedness,
                         });
                     }
                 }
@@ -221,24 +243,60 @@ export function useTwoHandGesture() {
                     smoothRef.current   = { dx: 0, dy: 0, dz: 0 };
                 }
 
-                // ── Rising-edge pinch ──────────────────────────────────────────
+                // ── Rising-edge pinch + double-pinch ──────────────────────────
                 const freshPinch = anyPinch && !wasPinchRef.current && now - lastPinchRef.current > PINCH_COOLDOWN;
+                const freshDoublePinch = freshPinch && (now - lastPinchRef.current) < DOUBLE_PINCH_WINDOW;
                 if (freshPinch) lastPinchRef.current = now;
                 wasPinchRef.current = anyPinch;
 
-                // ── Rising-edge fist (close gesture) ───────────────────────────
-                const anyFist = hands.some(h => h.gesture === 'fist');
-                const freshFist = anyFist && !wasFistRef.current && now - lastFistRef.current > FIST_COOLDOWN;
-                if (freshFist) lastFistRef.current = now;
-                wasFistRef.current = anyFist;
+                // ── RIGHT fist rising-edge (close inspector) ───────────────────
+                const anyRightFist = hands.some(h => h.gesture === 'fist' && h.handedness === 'Right');
+                const freshRightFist = anyRightFist && !wasRightFistRef.current && now - lastRightFistRef.current > FIST_COOLDOWN;
+                if (freshRightFist) lastRightFistRef.current = now;
+                wasRightFistRef.current = anyRightFist;
+
+                // ── LEFT fist continuous hold (sphere lock) ────────────────────
+                const leftFistHeld = hands.some(h => h.gesture === 'fist' && h.handedness === 'Left');
+
+                // ── Rising-edge victory (✌ focus mode) ────────────────────────
+                const anyVictory = hands.some(h => h.gesture === 'victory');
+                const freshVictory = anyVictory && !wasVictoryRef.current && now - lastVictoryRef.current > VICTORY_COOLDOWN;
+                if (freshVictory) lastVictoryRef.current = now;
+                wasVictoryRef.current = anyVictory;
+
+                // ── Continuous pinch progress (0 = far, 1 = full pinch) ────────
+                const pinchProgress = hands.reduce((max, h) => {
+                    const dist = Math.hypot(h.landmarks[4].x - h.landmarks[8].x, h.landmarks[4].y - h.landmarks[8].y);
+                    return Math.max(max, Math.max(0, Math.min(1, 1 - dist / (PINCH_DIST * 2))));
+                }, 0);
+
+                // ── Swipe detection — fast horizontal wrist movement ───────────
+                if (hands.length > 0) {
+                    wristXBufRef.current.push(hands[0].wrist.x);
+                    if (wristXBufRef.current.length > SWIPE_BUFFER_LEN) wristXBufRef.current.shift();
+                } else {
+                    wristXBufRef.current = [];
+                }
+                const swipeDetected = (() => {
+                    const buf = wristXBufRef.current;
+                    if (buf.length < SWIPE_BUFFER_LEN) return false;
+                    return Math.abs(buf[buf.length - 1] - buf[0]) > SWIPE_THRESH
+                        && now - lastSwipeRef.current > SWIPE_COOLDOWN;
+                })();
+                if (swipeDetected) lastSwipeRef.current = now;
 
                 setTwoHandState({
                     hands,
-                    rotationDelta: { dx: rotDx, dy: rotDy },
-                    zoomDelta:     zoomD,
+                    rotationDelta:    { dx: rotDx, dy: rotDy },
+                    zoomDelta:        zoomD,
                     freshPinch,
-                    freshFist,
-                    isActive:      bothPalms,
+                    freshRightFist,
+                    leftFistHeld,
+                    freshVictory,
+                    freshDoublePinch,
+                    pinchProgress,
+                    swipeDetected,
+                    isActive:         bothPalms,
                 });
 
                 rafRef.current = requestAnimationFrame(detect);

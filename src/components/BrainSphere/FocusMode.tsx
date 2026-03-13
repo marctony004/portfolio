@@ -620,6 +620,7 @@ function FocusDetailCard({ label, detail, tools, layer, onClose }: DetailInfo & 
 interface FocusModeProps {
     projectId: string;
     onExit:    () => void;
+    camRef:    React.MutableRefObject<CamState>;  // lifted to parent so gesture layer can control it
 }
 
 const INITIAL_FOCUS_CAM: CamState = {
@@ -635,7 +636,7 @@ const LAYER_LABELS: Record<Layer, string> = {
     arch:     'Architecture',
 };
 
-export function FocusMode({ projectId, onExit }: FocusModeProps) {
+export function FocusMode({ projectId, onExit, camRef }: FocusModeProps) {
     const project = useMemo(() => {
         const projectsOrbit = orbitNodes.find(n => n.id === 'projects');
         return projectsOrbit?.children?.find(c => c.id === projectId) ?? null;
@@ -758,7 +759,6 @@ export function FocusMode({ projectId, onExit }: FocusModeProps) {
     }, []);
 
     // ── Pointer controls ───────────────────────────────────────────────────────
-    const camRef        = useRef<CamState>({ ...INITIAL_FOCUS_CAM });
     const hasDraggedRef = useRef(false);
     const isDraggingRef = useRef(false);
     const lastPtrRef    = useRef({ x: 0, y: 0 });
