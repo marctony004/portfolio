@@ -623,10 +623,6 @@ interface FocusModeProps {
     camRef:    React.MutableRefObject<CamState>;  // lifted to parent so gesture layer can control it
 }
 
-const INITIAL_FOCUS_CAM: CamState = {
-    theta: 0, phi: 1.22, distance: 7.5,
-    targetTheta: 0, targetPhi: 1.22, targetDistance: 7.5,
-};
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
